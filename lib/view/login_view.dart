@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:wedding_online/services/auth_service.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -10,22 +11,35 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  bool _obscureText = true;
   bool _isLoading = false;
+  bool _obscureText = true;
+  final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      // Simulasi delay login
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        final authService = AuthService();
+        final response = await authService.login(
+          _usernameController.text,
+          _passwordController.text,
+        );
+        setState(() => _isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Login Berhasil: ${response.user?.name ?? 'Penggunal'}',
+            ),
+          ),
+        );
+      } catch (e) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Login Berhasil!')));
-      });
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     }
   }
 
