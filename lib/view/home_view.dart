@@ -8,8 +8,15 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  final List<String> galleryImages = [
+    'assets/images/couple.jpg',
+    'assets/images/gallery1.jpeg',
+    'assets/images/gallery2.jpeg',
+    'assets/images/gallery3.jpeg',
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(appBar: AppBar(title: Text('Home')));
   }
 }

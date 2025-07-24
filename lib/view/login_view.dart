@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/services/auth_service.dart';
+import 'package:wedding_online/view/home_view.dart';
 import 'package:wedding_online/view/register_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -16,6 +18,7 @@ class _LoginViewState extends State<LoginView> {
   bool _obscureText = true;
   final _passwordController = TextEditingController();
   final _usernameController = TextEditingController();
+  String tempToken = 'kosong';
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
@@ -27,6 +30,12 @@ class _LoginViewState extends State<LoginView> {
           _passwordController.text,
         );
         setState(() => _isLoading = false);
+        final token = response.data?.token;
+        if (token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', token);
+          tempToken = prefs.getString('token') ?? 'kosong';
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -34,6 +43,11 @@ class _LoginViewState extends State<LoginView> {
               'Login Berhasil: ${response.data?.user?.name ?? 'Pengguna'}',
             ),
           ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeView()),
         );
       } catch (e) {
         setState(() => _isLoading = false);
@@ -63,7 +77,7 @@ class _LoginViewState extends State<LoginView> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Selamat Datang2!', style: headingStyle),
+                    Text('Selamat Datang!', style: headingStyle),
                     const SizedBox(height: 8),
                     Text('Login untuk melanjutkan', style: subheadingStyle),
                     formTopSpacing,
