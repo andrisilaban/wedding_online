@@ -30,7 +30,7 @@ class _LoginViewState extends State<LoginView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Login Berhasil: ${response.user?.name ?? 'Penggunal'}',
+              'Login Berhasil: ${response.data?.user?.name ?? 'Pengguna'}',
             ),
           ),
         );
