@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/view/login_view.dart';
+import 'package:wedding_online/constants/styles.dart';
 
 class RegisterView extends StatefulWidget {
   const RegisterView({super.key});
@@ -48,84 +48,58 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = Colors.indigo;
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: screenPadding,
           child: Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
             elevation: 8,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+              padding: formCardPadding,
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Selamat Datang!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: themeColor,
-                      ),
-                    ),
+                    Text('Selamat Datang!', style: headingStyle),
                     const SizedBox(height: 8),
-                    Text(
-                      'Register untuk melanjutkan',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    Text('Register untuk melanjutkan', style: subheadingStyle),
+                    formTopSpacing,
 
-                    // Username
                     TextFormField(
                       controller: _nameController,
-                      decoration: InputDecoration(
+                      decoration: inputDecoration.copyWith(
                         labelText: 'Name',
                         prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Name tidak boleh kosong';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Name tidak boleh kosong'
+                          : null,
                     ),
-                    const SizedBox(height: 16),
-                    // Username
+                    formFieldSpacing,
+
                     TextFormField(
                       controller: _emailController,
-                      decoration: InputDecoration(
+                      decoration: inputDecoration.copyWith(
                         labelText: 'Email',
                         prefixIcon: const Icon(Icons.email),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Email tidak boleh kosong';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                          ? 'Email tidak boleh kosong'
+                          : null,
                     ),
-                    const SizedBox(height: 16),
+                    formFieldSpacing,
 
-                    // Password
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscureText,
-                      decoration: InputDecoration(
+                      decoration: inputDecoration.copyWith(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock),
                         suffixIcon: IconButton(
@@ -137,20 +111,13 @@ class _RegisterViewState extends State<RegisterView> {
                           onPressed: () =>
                               setState(() => _obscureText = !_obscureText),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.length < 6) {
-                          return 'Password minimal 6 karakter';
-                        }
-                        return null;
-                      },
+                      validator: (value) => value == null || value.length < 6
+                          ? 'Password minimal 6 karakter'
+                          : null,
                     ),
                     const SizedBox(height: 24),
 
-                    // Login Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -166,13 +133,7 @@ class _RegisterViewState extends State<RegisterView> {
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : Text(
-                                'Register',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
+                            : Text('Register', style: buttonTextStyle),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -186,7 +147,10 @@ class _RegisterViewState extends State<RegisterView> {
                           ),
                         );
                       },
-                      child: const Text("Sudah punya akun? Login di sini."),
+                      child: Text(
+                        "Sudah punya akun? Login di sini.",
+                        style: subheadingStyle,
+                      ),
                     ),
                   ],
                 ),

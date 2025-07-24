@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/view/register_view.dart';
 
@@ -46,66 +46,47 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = Colors.indigo;
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: screenPadding,
           child: Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
             elevation: 8,
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+              padding: formCardPadding,
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Selamat Datang!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: themeColor,
-                      ),
-                    ),
+                    Text('Selamat Datang2!', style: headingStyle),
                     const SizedBox(height: 8),
-                    Text(
-                      'Login untuk melanjutkan',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    Text('Login untuk melanjutkan', style: subheadingStyle),
+                    formTopSpacing,
 
                     // Username
                     TextFormField(
                       controller: _usernameController,
-                      decoration: InputDecoration(
+                      decoration: inputDecoration.copyWith(
                         labelText: 'Username',
                         prefixIcon: const Icon(Icons.person),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Username tidak boleh kosong';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          (value == null || value.trim().isEmpty)
+                          ? 'Username tidak boleh kosong'
+                          : null,
                     ),
-                    const SizedBox(height: 16),
+                    formFieldSpacing,
 
                     // Password
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscureText,
-                      decoration: InputDecoration(
+                      decoration: inputDecoration.copyWith(
                         labelText: 'Password',
                         prefixIcon: const Icon(Icons.lock),
                         suffixIcon: IconButton(
@@ -117,18 +98,12 @@ class _LoginViewState extends State<LoginView> {
                           onPressed: () =>
                               setState(() => _obscureText = !_obscureText),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.length < 6) {
-                          return 'Password minimal 6 karakter';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.length < 6)
+                          ? 'Password minimal 6 karakter'
+                          : null,
                     ),
-                    const SizedBox(height: 24),
+                    formTopSpacing,
 
                     // Login Button
                     SizedBox(
@@ -146,16 +121,10 @@ class _LoginViewState extends State<LoginView> {
                             ? const CircularProgressIndicator(
                                 color: Colors.white,
                               )
-                            : Text(
-                                'Login',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
+                            : Text('Login', style: buttonTextStyle),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    formFieldSpacing,
 
                     TextButton(
                       onPressed: () {
@@ -165,16 +134,16 @@ class _LoginViewState extends State<LoginView> {
                       },
                       child: Text(
                         'Lupa password?',
-                        style: GoogleFonts.poppins(color: themeColor),
+                        style: TextStyle(color: themeColor),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    formFieldSpacing,
                     TextButton(
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RegisterView(),
+                            builder: (_) => const RegisterView(),
                           ),
                         );
                       },
