@@ -26,15 +26,6 @@ class AuthService {
         response.data,
         fromJsonData: (json) => LoginModel.fromJson(json),
       );
-      // } on DioException catch (e) {
-      //   return ApiResponse.fromJson(
-      //     e.response?.data ??
-      //         {
-      //           'status': e.response?.statusCode ?? 500,
-      //           'message': e.message ?? 'Terjadi Kesalahan',
-      //         },
-      //   );
-      // }
     } on DioException catch (e) {
       debugPrint('-----');
       debugPrint(e.response?.data.toString());

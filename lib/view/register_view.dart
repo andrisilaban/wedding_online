@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:wedding_online/services/auth_service.dart';
-import 'package:wedding_online/view/register_view.dart';
+import 'package:wedding_online/view/login_view.dart';
 
-class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+class RegisterView extends StatefulWidget {
+  const RegisterView({super.key});
 
   @override
-  State<LoginView> createState() => _LoginViewState();
+  State<RegisterView> createState() => _RegisterViewState();
 }
 
-class _LoginViewState extends State<LoginView> {
+class _RegisterViewState extends State<RegisterView> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   bool _obscureText = true;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _usernameController = TextEditingController();
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
         final authService = AuthService();
-        final response = await authService.login(
-          _usernameController.text,
+        final response = await authService.register(
+          _nameController.text,
+          _emailController.text,
           _passwordController.text,
         );
         setState(() => _isLoading = false);
@@ -31,7 +33,7 @@ class _LoginViewState extends State<LoginView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Login Berhasil: ${response.data?.user?.name ?? 'Pengguna'}',
+              'Login Berhasil: ${response.message ?? 'Register Berhasil'}',
             ),
           ),
         );
@@ -74,7 +76,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Login untuk melanjutkan',
+                      'Register untuk melanjutkan',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -84,9 +86,9 @@ class _LoginViewState extends State<LoginView> {
 
                     // Username
                     TextFormField(
-                      controller: _usernameController,
+                      controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Username',
+                        labelText: 'Name',
                         prefixIcon: const Icon(Icons.person),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -94,7 +96,25 @@ class _LoginViewState extends State<LoginView> {
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Username tidak boleh kosong';
+                          return 'Name tidak boleh kosong';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Username
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Email tidak boleh kosong';
                         }
                         return null;
                       },
@@ -147,7 +167,7 @@ class _LoginViewState extends State<LoginView> {
                                 color: Colors.white,
                               )
                             : Text(
-                                'Login',
+                                'Register',
                                 style: GoogleFonts.poppins(
                                   fontSize: 16,
                                   color: Colors.white,
@@ -159,26 +179,14 @@ class _LoginViewState extends State<LoginView> {
 
                     TextButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Fitur belum tersedia')),
-                        );
-                      },
-                      child: Text(
-                        'Lupa password?',
-                        style: GoogleFonts.poppins(color: themeColor),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const RegisterView(),
+                            builder: (context) => const LoginView(),
                           ),
                         );
                       },
-                      child: const Text("Belum punya akun? Daftar di sini."),
+                      child: const Text("Sudah punya akun? Login di sini."),
                     ),
                   ],
                 ),
