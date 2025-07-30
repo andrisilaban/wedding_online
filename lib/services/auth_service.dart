@@ -4,6 +4,7 @@ import 'package:wedding_online/models/api_response.dart';
 import 'package:wedding_online/models/login_model.dart';
 
 class AuthService {
+  static const _key = 'token';
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: 'https://wedding.playroomzone.pro/api',

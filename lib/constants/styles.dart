@@ -78,3 +78,13 @@ final BoxDecoration circleImageDecoration = BoxDecoration(
   shape: BoxShape.circle,
   border: Border.all(color: Colors.purple.shade200, width: 5),
 );
+
+const sh10 = SizedBox(height: 10);
+const sh16 = SizedBox(height: 16);
+const sh20 = SizedBox(height: 20);
+const sh24 = SizedBox(height: 24);
+const sh32 = SizedBox(height: 32);
+const SizedBox sh100 = SizedBox(height: 100);
+const sw10 = SizedBox(width: 10);
+const sw16 = SizedBox(width: 16);
+const sw20 = SizedBox(width: 20);

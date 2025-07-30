@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/services/auth_service.dart';
+import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/home_view.dart';
 import 'package:wedding_online/view/register_view.dart';
 
@@ -32,11 +33,8 @@ class _LoginViewState extends State<LoginView> {
         setState(() => _isLoading = false);
         final token = response.data?.token;
         if (token != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('token', token);
-          tempToken = prefs.getString('token') ?? 'kosong';
+          await StorageService().saveToken(token);
         }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
