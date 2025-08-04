@@ -124,33 +124,8 @@ class _HomeViewState extends State<HomeView> {
               _buildLogoutButton(),
               sh16,
               _buildWeddingInfoCard(),
-              const SizedBox(height: 30),
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 24),
-                padding: EdgeInsets.all(24),
-                decoration: cardDecoration,
-                child: Column(
-                  children: [
-                    Text(
-                      "Assalamualaikum Wr. Wb.",
-                      style: headerTextStyle.copyWith(
-                        fontSize: 24,
-                        fontFamily: 'Cormorant',
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Dengan memohon rahmat dan ridho Allah SWT, kami bermaksud menyelenggarakan acara pernikahan kami:",
-                      textAlign: TextAlign.center,
-                      style: italicTextStyle.copyWith(
-                        fontSize: 16,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              sh32,
+              _buildPresentationCard(),
               sh32,
               _buildDateSection(),
               sh32,
@@ -170,39 +145,7 @@ class _HomeViewState extends State<HomeView> {
               sh32,
               _buildThankYouSection(),
               const SizedBox(height: 40),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                color: Colors.purple.shade900,
-                child: Column(
-                  children: [
-                    Text(
-                      'Thank You',
-                      style: coupleNameTextStyle.copyWith(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontFamily: 'Cormorant',
-                      ),
-                    ),
-                    sh10,
-                    Text(
-                      'For beind part of our special day',
-                      style: bodyTextStyle.copyWith(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                      ),
-                    ),
-                    sh16,
-                    Text(
-                      "Created with ❤️ by MomenKu",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildMomenkuSection(),
             ],
           ),
         ),
@@ -318,6 +261,32 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPresentationCard() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.all(24),
+      decoration: cardDecoration,
+      child: Column(
+        children: [
+          Text(
+            "Assalamualaikum Wr. Wb.",
+            style: headerTextStyle.copyWith(
+              fontSize: 24,
+              fontFamily: 'Cormorant',
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Dengan memohon rahmat dan ridho Allah SWT, kami bermaksud menyelenggarakan acara pernikahan kami:",
+            textAlign: TextAlign.center,
+            style: italicTextStyle.copyWith(fontSize: 16, letterSpacing: 0.5),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1084,6 +1053,42 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMomenkuSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      color: Colors.purple.shade900,
+      child: Column(
+        children: [
+          Text(
+            'Thank You',
+            style: coupleNameTextStyle.copyWith(
+              color: Colors.white,
+              fontSize: 30,
+              fontFamily: 'Cormorant',
+            ),
+          ),
+          sh10,
+          Text(
+            'For beind part of our special day',
+            style: bodyTextStyle.copyWith(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 16,
+            ),
+          ),
+          sh16,
+          Text(
+            "Created with ❤️ by MomenKu",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.6),
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

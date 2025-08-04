@@ -79,6 +79,8 @@ final BoxDecoration circleImageDecoration = BoxDecoration(
   border: Border.all(color: Colors.purple.shade200, width: 5),
 );
 
+const sh4 = SizedBox(height: 4);
+const sh8 = SizedBox(height: 8);
 const sh10 = SizedBox(height: 10);
 const sh16 = SizedBox(height: 16);
 const sh20 = SizedBox(height: 20);
