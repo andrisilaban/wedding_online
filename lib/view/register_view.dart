@@ -33,7 +33,7 @@ class _RegisterViewState extends State<RegisterView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Login Berhasil: ${response.message ?? 'Register Berhasil'}',
+              'Register Berhasil: ${response.message ?? 'Register Berhasil'}',
             ),
           ),
         );

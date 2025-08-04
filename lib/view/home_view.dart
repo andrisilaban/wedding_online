@@ -14,14 +14,16 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   StorageService storageService = StorageService();
+  String? selectedValue;
+  int _attendingCount = 0;
+  bool _showBankDetails = false;
   final ConfettiController _confettiController = ConfettiController(
     duration: const Duration(seconds: 3),
   );
 
-  String? selectedValue;
-  final List<String> options = ["Hadir", "Tidak Hadir", "Mungkin"];
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
+  final List<String> options = ["Hadir", "Tidak Hadir", "Mungkin"];
 
   final List<String> galleryImages = [
     'assets/images/couple.jpg',
@@ -38,9 +40,6 @@ class _HomeViewState extends State<HomeView> {
       'attendance': 'Hadir',
     },
   ];
-
-  int _attendingCount = 0;
-  bool _showBankDetails = false;
 
   @override
   void initState() {
@@ -121,14 +120,8 @@ class _HomeViewState extends State<HomeView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              sh100,
-              ElevatedButton(
-                onPressed: () async {
-                  await StorageService().clearAll();
-                  Navigator.pushReplacementNamed(context, '/login');
-                },
-                child: Text('Logout'),
-              ),
+              sh32,
+              _buildLogoutButton(),
               sh16,
               _buildWeddingInfoCard(),
               const SizedBox(height: 30),
@@ -216,6 +209,17 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
+
+  Widget _buildLogoutButton() => Align(
+    alignment: Alignment.centerRight,
+    child: ElevatedButton(
+      onPressed: () {
+        storageService.clearAll();
+        Navigator.pushReplacementNamed(context, '/login');
+      },
+      child: const Text('Logout'),
+    ),
+  );
 
   Widget _buildWeddingInfoCard() {
     return Stack(
@@ -333,7 +337,7 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         children: [
           Text(
-            'Save The Date',
+            "Save The Date",
             style: headerTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -341,34 +345,34 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           const CountdownTimer(),
-          sh20,
+          const SizedBox(height: 20),
           Text(
-            'Rabu 18 Juni 2025',
+            "Rabu, 18 Juni 2025",
             style: headerTextStyle.copyWith(
               fontSize: 24,
               fontFamily: 'Cormorant',
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Text(
-            'Pukul 13:30 - 20:00',
+            "Pukul 13:30 - 20:00 WIB",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Text(
-            'Golder Ballroom - Grand Palace Hotel',
+            "Golden Ballroom - Grand Palace Hotel",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text('Jl. Raya Utama No. 123, Jakarta', style: bodyTextStyle),
-          sh20,
+          Text("Jl. Raya Utama No. 123, Jakarta", style: bodyTextStyle),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () async {
               Uri url = Uri.parse(
@@ -379,7 +383,7 @@ class _HomeViewState extends State<HomeView> {
               }
             },
             icon: const Icon(Icons.location_on),
-            label: Text('Lihat Lokasi'),
+            label: const Text("Lihat Lokasi"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple.shade700,
               foregroundColor: Colors.white,
@@ -403,7 +407,7 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         children: [
           Text(
-            'Bride & Groom',
+            "Bride & Groom",
             style: headerTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -411,7 +415,7 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh24,
+          const SizedBox(height: 24),
           Container(
             decoration: circleImageDecoration,
             child: ClipOval(
@@ -425,13 +429,13 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Ahmad',
+            "Ahmad",
             style: coupleNameTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
             ),
           ),
-          sh10,
+          const SizedBox(height: 8),
           Text(
             "Putra pertama dari pasangan\n"
             "Bapak Hadi & Ibu Aminah\n"
@@ -439,7 +443,9 @@ class _HomeViewState extends State<HomeView> {
             textAlign: TextAlign.center,
             style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),
           ),
-          sh24,
+          const SizedBox(height: 24),
+          Icon(Icons.favorite, color: Colors.purple.shade300, size: 32),
+          const SizedBox(height: 24),
           Container(
             decoration: circleImageDecoration,
             child: ClipOval(
@@ -447,22 +453,23 @@ class _HomeViewState extends State<HomeView> {
                 'assets/images/gallery1.jpeg',
                 width: 140,
                 height: 140,
+                fit: BoxFit.cover,
               ),
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Text(
-            'Siti',
+            "Siti",
             style: coupleNameTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
             ),
           ),
-          sh10,
+          const SizedBox(height: 8),
           Text(
-            'Putri pertama dari pasangan\n'
-            'Bapak Joko & Ibu Sarah\n'
-            'Bandung',
+            "Putri pertama dari pasangan\n"
+            "Bapak Joko & Ibu Sarah\n"
+            "Bandung",
             textAlign: TextAlign.center,
             style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),
           ),
@@ -523,7 +530,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           child: Icon(icon, color: Colors.purple.shade700),
         ),
-        sw16,
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +547,6 @@ class _HomeViewState extends State<HomeView> {
                 style: bodyTextStyle.copyWith(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 4),
-
               Text(description, style: bodyTextStyle),
             ],
           ),
@@ -552,7 +558,7 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildGallerySection() {
     return Column(
       children: [
-        _buildSectionHeader('Our Gallery'),
+        _buildSectionHeader("Our Gallery"),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           padding: const EdgeInsets.all(16),
@@ -562,7 +568,7 @@ class _HomeViewState extends State<HomeView> {
               GridView.count(
                 crossAxisCount: 1,
                 shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: galleryImages.map((image) {
@@ -586,7 +592,7 @@ class _HomeViewState extends State<HomeView> {
                   );
                 }).toList(),
               ),
-              sh20,
+              const SizedBox(height: 20),
               Text(
                 "\"Cinta adalah perjalanan yang indah ketika didasari oleh kesetiaan dan komitmen yang tulus.\"",
                 textAlign: TextAlign.center,
@@ -604,7 +610,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildSectionHeader(String title, {bool withDivider = true}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
       child: Column(
         children: [
           if (withDivider)
@@ -612,7 +618,7 @@ class _HomeViewState extends State<HomeView> {
               children: [
                 Expanded(child: Divider(color: Colors.purple.shade200)),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
                     title,
                     style: headerTextStyle.copyWith(
@@ -645,7 +651,7 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         children: [
           Text(
-            'Livestream',
+            "Livestream",
             style: headerTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -653,7 +659,7 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Container(
             height: 200,
             decoration: BoxDecoration(
@@ -666,31 +672,32 @@ class _HomeViewState extends State<HomeView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.videocam, size: 50, color: Colors.purple.shade300),
-                  sh16,
+                  const SizedBox(height: 16),
                   Text(
-                    'Live Streamin akan dimulau pada hari-H',
+                    "Live Streaming akan dimulai pada hari-H",
                     style: bodyTextStyle,
                   ),
                 ],
               ),
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () async {
               Uri url = Uri.parse('https://youtube.com');
+
               if (await canLaunchUrl(url)) {
                 await launchUrl(url);
               }
             },
             icon: const Icon(Icons.play_circle_filled),
-            label: Text('Tonton di Youtube'),
+            label: const Text("Tonton di YouTube"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadiusGeometry.circular(30),
+                borderRadius: BorderRadius.circular(30),
               ),
             ),
           ),
@@ -702,12 +709,12 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildAttendanceSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
       decoration: cardDecoration,
       child: Column(
         children: [
           Text(
-            'Konfirmasi Kehadiran',
+            "Konfirmasi Kehadiran",
             style: headerTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -715,30 +722,31 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh24,
+          const SizedBox(height: 24),
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
-              labelText: 'Nama',
+              labelText: "Nama",
               labelStyle: TextStyle(color: Colors.purple.shade700),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade300),
+                borderSide: BorderSide(color: Colors.purple.shade300, width: 2),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade300),
+                borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
               ),
+              prefixIcon: Icon(Icons.person, color: Colors.purple.shade300),
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           TextField(
             controller: _messageController,
             maxLines: 3,
             decoration: InputDecoration(
-              labelText: 'Ucapan & Doa',
+              labelText: "Ucapan & Doa",
               labelStyle: TextStyle(color: Colors.purple.shade700),
               filled: true,
               fillColor: Colors.white,
@@ -753,21 +761,21 @@ class _HomeViewState extends State<HomeView> {
               prefixIcon: Icon(Icons.message, color: Colors.purple.shade300),
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.purple.shade300, width: 2),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: selectedValue,
                 hint: Text(
-                  'Status Kehadiran',
-                  style: TextStyle(color: Colors.purple.shade300),
+                  "Status Kehadiran",
+                  style: TextStyle(color: Colors.purple.shade700),
                 ),
                 icon: Icon(
                   Icons.arrow_drop_down,
@@ -779,15 +787,19 @@ class _HomeViewState extends State<HomeView> {
                     child: Row(
                       children: [
                         Icon(
-                          value == 'Hadir' ? Icons.check_circle : Icons.help,
-                          color: value == 'Hadir'
+                          value == "Hadir"
+                              ? Icons.check_circle
+                              : value == "Tidak Hadir"
+                              ? Icons.cancel
+                              : Icons.help,
+                          color: value == "Hadir"
                               ? Colors.green
-                              : value == 'Tidak Hadir'
+                              : value == "Tidak Hadir"
                               ? Colors.red
                               : Colors.amber,
                           size: 20,
                         ),
-                        sh10,
+                        const SizedBox(width: 8),
                         Text(value),
                       ],
                     ),
@@ -801,7 +813,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          sh24,
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _submitComment,
             style: ElevatedButton.styleFrom(
@@ -809,17 +821,17 @@ class _HomeViewState extends State<HomeView> {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadiusGeometry.circular(30),
+                borderRadius: BorderRadius.circular(30),
               ),
               elevation: 5,
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.send),
-                sh10,
+                SizedBox(width: 8),
                 Text(
-                  'Kirim Ucapan',
+                  "Kirim Ucapan",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -841,14 +853,14 @@ class _HomeViewState extends State<HomeView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${comments.length} Ucapan',
+                "${comments.length} Ucapan",
                 style: headerTextStyle.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '$_attendingCount Hadir',
+                "$_attendingCount Hadir",
                 style: headerTextStyle.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -857,7 +869,7 @@ class _HomeViewState extends State<HomeView> {
               ),
             ],
           ),
-          sh16,
+          const SizedBox(height: 16),
           const Divider(),
           for (var comment in comments) ...[
             ListTile(
@@ -876,9 +888,9 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     comment['name'],
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  sh10,
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -893,7 +905,7 @@ class _HomeViewState extends State<HomeView> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'attendance',
+                      comment['attendance'],
                       style: TextStyle(
                         fontSize: 12,
                         color: comment['attendance'] == 'Hadir'
@@ -918,7 +930,7 @@ class _HomeViewState extends State<HomeView> {
                 ],
               ),
             ),
-            Divider(),
+            const Divider(),
           ],
         ],
       ),
@@ -933,7 +945,7 @@ class _HomeViewState extends State<HomeView> {
       child: Column(
         children: [
           Text(
-            'Wedding Gift',
+            "Wedding Gift",
             style: headerTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -941,7 +953,7 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh16,
+          const SizedBox(height: 16),
           Text(
             "Doa restu Bapak/lbu sekalian merupakan karunia yang sangat berarti bagi kami. "
             "Dan jika memberi merupakan ungkapan tanda kasih, Bapak/lbu dapat memberi kado "
@@ -949,7 +961,7 @@ class _HomeViewState extends State<HomeView> {
             textAlign: TextAlign.center,
             style: italicTextStyle.copyWith(fontSize: 16, letterSpacing: 0.5),
           ),
-          sh20,
+          const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () {
               setState(() {
@@ -960,45 +972,44 @@ class _HomeViewState extends State<HomeView> {
               _showBankDetails ? Icons.visibility_off : Icons.visibility,
             ),
             label: Text(
-              _showBankDetails ? 'Sembunyikan Detail' : 'Lihat Detail',
+              _showBankDetails ? "Sembunyikan Detail" : "Lihat Detail",
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple.shade700,
               foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
             ),
           ),
           if (_showBankDetails) ...[
-            sh20,
+            const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-
-                border: Border.all(color: Colors.purple.shade300),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.purple.shade300),
               ),
               child: Column(
                 children: [
                   Image.asset(
                     'assets/images/bca_card.jpg',
                     height: 80,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                   ),
-                  sh16,
-                  Text(
-                    'BCA: 1234567890',
+                  const SizedBox(height: 16),
+                  const Text(
+                    "BCA: 1234567890",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  Text('a.n. Afrizal', style: TextStyle(fontSize: 16)),
-                  sh16,
+                  const Text("a.n. Ahmad", style: TextStyle(fontSize: 16)),
+                  const SizedBox(height: 16),
                   OutlinedButton(
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Nomor rekening disalin')),
+                        const SnackBar(content: Text('Nomor rekening disalin')),
                       );
                     },
                     style: OutlinedButton.styleFrom(
@@ -1009,12 +1020,12 @@ class _HomeViewState extends State<HomeView> {
                         vertical: 10,
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.copy),
-                        sw10,
-                        Text('Salin Nomor Rekening'),
+                        SizedBox(width: 8),
+                        Text("Salin Nomor Rekening"),
                       ],
                     ),
                   ),
@@ -1034,7 +1045,7 @@ class _HomeViewState extends State<HomeView> {
           margin: const EdgeInsets.symmetric(horizontal: 24),
           decoration: cardDecoration,
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
                 Container(
@@ -1048,7 +1059,7 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ),
                 ),
-                sh20,
+                const SizedBox(height: 20),
                 Text(
                   "Merupakan Suatu Kebahagiaan dan Kehormatan bagi Kami, "
                   "Apabila Bapak/Ibu/Saudara/i, Berkenan Hadir di Acara kami",
@@ -1062,9 +1073,9 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
         ),
-        sh16,
+        const SizedBox(height: 16),
         Text(
-          'Ahmad & Siti',
+          "Ahmad & Siti",
           textAlign: TextAlign.center,
           style: coupleNameTextStyle.copyWith(
             fontSize: 36,
