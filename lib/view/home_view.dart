@@ -2,6 +2,8 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
+import 'package:wedding_online/models/invitation_model.dart';
+import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
 
@@ -13,10 +15,20 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-  StorageService storageService = StorageService();
+  final AuthService _authService = AuthService();
+  final StorageService _storageService = StorageService();
+  late Future<List<InvitationModel>> _invitationsFuture;
+
   String? selectedValue;
   int _attendingCount = 0;
   bool _showBankDetails = false;
+  String groomFullName = 'Ahmad';
+  String brideFullName = 'Siti';
+  String groomFatherName = 'Hadi';
+  String groomMotherName = 'Aminah';
+  String brideFatherName = 'Joko';
+  String brideMotherName = 'Sarah';
+
   final ConfettiController _confettiController = ConfettiController(
     duration: const Duration(seconds: 3),
   );
@@ -40,6 +52,125 @@ class _HomeViewState extends State<HomeView> {
       'attendance': 'Hadir',
     },
   ];
+  Future<List<InvitationModel>> _loadInvitations() async {
+    final token = await _storageService.getToken();
+
+    if (token == null) {
+      throw Exception('Token tidak ditemukan. Silakan login ulang.');
+    }
+
+    final response = await _authService.getInvitations(token);
+    return response.data ?? [];
+  }
+
+  void showCreateInvitationPopup(BuildContext context) {
+    final groomFullNameController = TextEditingController();
+    final groomNickNameController = TextEditingController();
+    final groomFatherNameController = TextEditingController();
+    final groomMotherNameController = TextEditingController();
+    final brideFullNameController = TextEditingController();
+    final brideNickNameController = TextEditingController();
+    final brideFatherNameController = TextEditingController();
+    final brideMotherNameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Buat Undangan Baru'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: groomFullNameController,
+                  decoration: InputDecoration(labelText: 'Nama Pengantin Pria'),
+                ),
+                TextField(
+                  controller: groomNickNameController,
+                  decoration: InputDecoration(labelText: 'Nama Singkatan Pria'),
+                ),
+                TextField(
+                  controller: groomFatherNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Bapak Pengantin Pria',
+                  ),
+                ),
+                TextField(
+                  controller: groomMotherNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Ibu Pengantin Pria',
+                  ),
+                ),
+                TextField(
+                  controller: brideFullNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Pengantin Wanita',
+                  ),
+                ),
+                TextField(
+                  controller: brideNickNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Singkatan Wanita',
+                  ),
+                ),
+                TextField(
+                  controller: brideFatherNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Bapak Pengantin Wanita',
+                  ),
+                ),
+                TextField(
+                  controller: brideMotherNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Ibu Pengantin Wanita',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                String token = await StorageService().getToken() ?? '';
+                final authService = AuthService();
+
+                final data = {
+                  "title":
+                      "Pernikahan ${groomFullNameController.text} & ${brideFullNameController.text}",
+                  "theme_id": 1,
+                  "pre_wedding_text":
+                      "Dengan hormat mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan kami",
+                  "groom_full_name": groomFullNameController.text,
+                  "groom_nick_name": groomNickNameController.text,
+                  "groom_title": "Putra dari",
+                  "groom_father_name": groomFatherNameController.text,
+                  "groom_mother_name": groomMotherNameController.text,
+                  "bride_full_name": brideFullNameController.text,
+                  "bride_nick_name": brideNickNameController.text,
+                  "bride_title": "Putri dari",
+                  "bride_father_name": brideFatherNameController.text,
+                  "bride_mother_name": brideMotherNameController.text,
+                };
+
+                final result = await authService.createInvitation(token, data);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Undangan berhasil dibuat!')),
+                );
+
+                Navigator.pop(context);
+              },
+              child: Text('Kirim'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -48,6 +179,8 @@ class _HomeViewState extends State<HomeView> {
     Future.delayed(const Duration(milliseconds: 800), () {
       _confettiController.play();
     });
+
+    _invitationsFuture = _loadInvitations();
 
     // _calculateAttendingCount();
   }
@@ -61,7 +194,7 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void logOut() {
-    storageService.clearAll();
+    _storageService.clearAll();
   }
 
   void _calculateAttendingCount() {
@@ -103,52 +236,114 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.purple.shade900,
-              Colors.purple.shade700,
-              Colors.purple.shade400,
-              Colors.purple.shade300,
-            ],
-          ),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              sh32,
-              _buildLogoutButton(),
-              sh16,
-              _buildWeddingInfoCard(),
-              sh32,
-              _buildPresentationCard(),
-              sh32,
-              _buildDateSection(),
-              sh32,
-              _buildCoupleSection(),
-              sh32,
-              _buildEventSchedule(),
-              sh32,
-              _buildGallerySection(),
-              sh32,
-              _buildLiveStreamSection(),
-              sh32,
-              _buildAttendanceSection(),
-              sh32,
-              _buildCommentsSection(),
-              sh32,
-              _buildGiftSection(),
-              sh32,
-              _buildThankYouSection(),
-              const SizedBox(height: 40),
-              _buildMomenkuSection(),
-            ],
-          ),
-        ),
+      body: FutureBuilder<List<InvitationModel>>(
+        future: _invitationsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+          }
+
+          final invitations = snapshot.data ?? [];
+
+          if (invitations.isEmpty) {
+            return const Center(child: Text('Belum ada undangan.'));
+          }
+          return ListView.builder(
+            itemCount: invitations.length,
+            itemBuilder: (context, index) {
+              final invitation = invitations[index];
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.purple.shade900,
+                      Colors.purple.shade700,
+                      Colors.purple.shade400,
+                      Colors.purple.shade300,
+                    ],
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      sh32,
+                      Row(
+                        children: [
+                          _buildLogoutButton(),
+                          ElevatedButton(
+                            onPressed: () {
+                              showCreateInvitationPopup(
+                                context,
+                              ); // Ganti `token` sesuai yang kamu simpan
+                            },
+                            child: Text("Buat Undangan"),
+                          ),
+                        ],
+                      ),
+                      sh16,
+                      Container(
+                        decoration: cardDecoration.copyWith(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.purple.withOpacity(0.3),
+                              spreadRadius: 2,
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Text(invitation.title.toString()),
+                      ),
+                      _buildWeddingInfoCard(invitation.title),
+                      sh32,
+                      _buildPresentationCard(),
+                      sh32,
+                      _buildDateSection(),
+                      sh32,
+                      _buildCoupleSection(
+                        groomFullName:
+                            invitation.groomFullName ?? groomFullName,
+                        brideFullName:
+                            invitation.brideFullName ?? brideFullName,
+                        groomFatherName:
+                            invitation.groomFatherName ?? groomFatherName,
+                        groomMotherName:
+                            invitation.groomMotherName ?? groomMotherName,
+                        brideFatherName:
+                            invitation.brideFatherName ?? brideFatherName,
+                        brideMotherName:
+                            invitation.brideMotherName ?? brideMotherName,
+                      ),
+                      sh32,
+                      _buildEventSchedule(),
+                      sh32,
+                      _buildGallerySection(),
+                      sh32,
+                      _buildLiveStreamSection(),
+                      sh32,
+                      _buildAttendanceSection(),
+                      sh32,
+                      _buildCommentsSection(),
+                      sh32,
+                      _buildGiftSection(),
+                      sh32,
+                      _buildThankYouSection(),
+                      const SizedBox(height: 40),
+                      _buildMomenkuSection(),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
@@ -157,14 +352,19 @@ class _HomeViewState extends State<HomeView> {
     alignment: Alignment.centerRight,
     child: ElevatedButton(
       onPressed: () {
-        storageService.clearAll();
+        _storageService.clearAll();
         Navigator.pushReplacementNamed(context, '/login');
       },
       child: const Text('Logout'),
     ),
   );
 
-  Widget _buildWeddingInfoCard() {
+  Widget _buildWeddingInfoCard(String? title) {
+    String newTitle =
+        title
+            ?.replaceAll(RegExp(r'\bpernikahan\b', caseSensitive: false), '')
+            .trim() ??
+        'Pria & Wanita';
     return Stack(
       children: [
         ConfettiWidget(
@@ -223,7 +423,7 @@ class _HomeViewState extends State<HomeView> {
                   style: headerTextStyle.copyWith(fontFamily: 'Cormorant'),
                 ),
                 Text(
-                  "Ahmad & Siti",
+                  newTitle,
                   textAlign: TextAlign.center,
                   style: coupleNameTextStyle.copyWith(
                     fontSize: 38,
@@ -368,7 +568,14 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildCoupleSection() {
+  Widget _buildCoupleSection({
+    required String groomFullName,
+    required String brideFullName,
+    required String groomFatherName,
+    required String groomMotherName,
+    required String brideFatherName,
+    required String brideMotherName,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
@@ -398,7 +605,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Ahmad",
+            groomFullName,
             style: coupleNameTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -407,7 +614,7 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 8),
           Text(
             "Putra pertama dari pasangan\n"
-            "Bapak Hadi & Ibu Aminah\n"
+            "Bapak $groomFatherName & Ibu $groomMotherName\n"
             "Jakarta",
             textAlign: TextAlign.center,
             style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),
@@ -428,7 +635,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Siti",
+            brideFullName,
             style: coupleNameTextStyle.copyWith(
               fontSize: 28,
               fontFamily: 'Cormorant',
@@ -437,7 +644,7 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 8),
           Text(
             "Putri pertama dari pasangan\n"
-            "Bapak Joko & Ibu Sarah\n"
+            "Bapak $brideFatherName & Ibu $brideMotherName\n"
             "Bandung",
             textAlign: TextAlign.center,
             style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:wedding_online/models/api_response.dart';
+import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
 
 class AuthService {
@@ -57,6 +58,84 @@ class AuthService {
               'message': e.message ?? 'Terjadi Kesalahan',
             },
       );
+    }
+  }
+
+  Future<ApiResponse<InvitationModel>> createInvitation(
+    String token,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/invitations',
+        // data: data,
+        data: data,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- CREATE INVITATION RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => InvitationModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- CREATE INVITATION ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(
+          e.response?.data['message'] ?? 'Gagal membuat undangan',
+        );
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  Future<ApiResponse<List<InvitationModel>>> getInvitations(
+    String token,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/invitations',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET INVITATIONS ---');
+      debugPrint(response.data.toString());
+
+      final dataList = response.data['data'] as List<dynamic>;
+      final invitations = dataList
+          .map((json) => InvitationModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      return ApiResponse(
+        status: response.data['status'],
+        message: response.data['message'],
+        data: invitations,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET INVITATION ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat undangan');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
     }
   }
 
