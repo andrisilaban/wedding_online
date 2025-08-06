@@ -22,6 +22,7 @@ class _HomeViewState extends State<HomeView> {
   String? selectedValue;
   int _attendingCount = 0;
   bool _showBankDetails = false;
+  String groomBrideTitle = 'Pernikahan Ahmad & Siti';
   String groomFullName = 'Ahmad';
   String brideFullName = 'Siti';
   String groomFatherName = 'Hadi';
@@ -77,13 +78,13 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Buat Undangan Baru'),
+          title: Text('Data Diri'),
           content: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: groomFullNameController,
-                  decoration: InputDecoration(labelText: 'Nama Pengantin Pria'),
+                  decoration: InputDecoration(labelText: 'Nama Pria'),
                 ),
                 TextField(
                   controller: groomNickNameController,
@@ -91,21 +92,15 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 TextField(
                   controller: groomFatherNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Bapak Pengantin Pria',
-                  ),
+                  decoration: InputDecoration(labelText: 'Nama Bapak Pria'),
                 ),
                 TextField(
                   controller: groomMotherNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Ibu Pengantin Pria',
-                  ),
+                  decoration: InputDecoration(labelText: 'Nama Ibu Pria'),
                 ),
                 TextField(
                   controller: brideFullNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Pengantin Wanita',
-                  ),
+                  decoration: InputDecoration(labelText: 'Nama Wanita'),
                 ),
                 TextField(
                   controller: brideNickNameController,
@@ -115,15 +110,11 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 TextField(
                   controller: brideFatherNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Bapak Pengantin Wanita',
-                  ),
+                  decoration: InputDecoration(labelText: 'Nama Bapak Wanita'),
                 ),
                 TextField(
                   controller: brideMotherNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nama Ibu Pengantin Wanita',
-                  ),
+                  decoration: InputDecoration(labelText: 'Nama Ibu Wanita'),
                 ),
               ],
             ),
@@ -163,6 +154,10 @@ class _HomeViewState extends State<HomeView> {
                 );
 
                 Navigator.pop(context);
+
+                setState(() {
+                  _invitationsFuture = _loadInvitations();
+                });
               },
               child: Text('Kirim'),
             ),
@@ -250,7 +245,72 @@ class _HomeViewState extends State<HomeView> {
           final invitations = snapshot.data ?? [];
 
           if (invitations.isEmpty) {
-            return const Center(child: Text('Belum ada undangan.'));
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.purple.shade900,
+                    Colors.purple.shade700,
+                    Colors.purple.shade400,
+                    Colors.purple.shade300,
+                  ],
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    sh32,
+                    Row(
+                      children: [
+                        _buildLogoutButton(),
+                        ElevatedButton(
+                          onPressed: () {
+                            showCreateInvitationPopup(
+                              context,
+                            ); // Ganti `token` sesuai yang kamu simpan
+                          },
+                          child: Text("Buat Undangan"),
+                        ),
+                      ],
+                    ),
+                    sh16,
+                    _buildWeddingInfoCard(groomBrideTitle),
+                    sh32,
+                    _buildPresentationCard(),
+                    sh32,
+                    _buildDateSection(),
+                    sh32,
+                    _buildCoupleSection(
+                      groomFullName: groomFullName,
+                      brideFullName: brideFullName,
+                      groomFatherName: groomFatherName,
+                      groomMotherName: groomMotherName,
+                      brideFatherName: brideFatherName,
+                      brideMotherName: brideMotherName,
+                    ),
+                    sh32,
+                    _buildEventSchedule(),
+                    sh32,
+                    _buildGallerySection(),
+                    sh32,
+                    _buildLiveStreamSection(),
+                    sh32,
+                    _buildAttendanceSection(),
+                    sh32,
+                    _buildCommentsSection(),
+                    sh32,
+                    _buildGiftSection(),
+                    sh32,
+                    _buildThankYouSection(),
+                    const SizedBox(height: 40),
+                    _buildMomenkuSection(),
+                  ],
+                ),
+              ),
+            );
           }
           return ListView.builder(
             itemCount: invitations.length,
@@ -288,19 +348,7 @@ class _HomeViewState extends State<HomeView> {
                         ],
                       ),
                       sh16,
-                      Container(
-                        decoration: cardDecoration.copyWith(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.purple.withOpacity(0.3),
-                              spreadRadius: 2,
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Text(invitation.title.toString()),
-                      ),
+
                       _buildWeddingInfoCard(invitation.title),
                       sh32,
                       _buildPresentationCard(),
