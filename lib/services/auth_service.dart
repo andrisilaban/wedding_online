@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:wedding_online/models/api_response.dart';
+import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
 
@@ -139,22 +140,57 @@ class AuthService {
     }
   }
 
-  // Future<LoginResponseModel> login(String email, String password) async {
-  //   try {
-  //     final response = await _dio.post(
-  //       '/login',
-  //       data: {'email': email, 'password': password},
-  //     );
-  //     // debugPrint(response.data.toString());
-  //     return LoginResponseModel.fromJson(response.data);
-  //   } on DioException catch (e) {
-  //     debugPrint('-----');
-  //     debugPrint(e.response?.data.toString());
-  //     if (e.response != null && e.response?.data is Map<String, dynamic>) {
-  //       throw Exception(e.response?.data['message'] ?? 'Login gagal');
-  //     } else {
-  //       throw Exception('Terjadi kesalahan jaringan');
-  //     }
-  //   }
-  // }
+  Future<ApiResponse<EventModel>> createEvent({
+    required String token,
+    required int invitationId,
+    required String name,
+    required String venueName,
+    required String venueAddress,
+    required String date,
+    required String startTime,
+    required String endTime,
+    required String description,
+    required int orderNumber,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/events',
+        data: {
+          "invitation_id": invitationId,
+          "name": name,
+          "venue_name": venueName,
+          "venue_address": venueAddress,
+          "date": date,
+          "start_time": startTime,
+          "end_time": endTime,
+          "description": description,
+          "order_number": orderNumber,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- CREATE EVENT RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => EventModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- CREATE EVENT ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal membuat acara');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
 }
