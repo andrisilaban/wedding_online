@@ -2,6 +2,8 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
+import 'package:wedding_online/models/event_load_model.dart';
+import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
@@ -15,9 +17,53 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  bool _hasRedirected = false;
+
+  //   void _handleTokenErrorOnce(String error) {
+  //   if (_hasRedirected) return;
+
+  //   _hasRedirected = true;
+
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     await _storageService.clearAll();
+  //     if (!mounted) return;
+  //     Navigator.pushReplacementNamed(context, '/login');
+  //   });
+  // }
+
+  void _handleTokenErrorOnce(String error) {
+    if (_hasRedirected) return;
+
+    _hasRedirected = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Tampilkan snackbar sebelum redirect
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $error'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      await Future.delayed(
+        const Duration(seconds: 2),
+      ); // beri waktu tampil snackbar
+      await _storageService.clearAll();
+
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    });
+  }
+
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   late Future<List<InvitationModel>> _invitationsFuture;
+
+  List<EventLoadModel> _events = [];
+  bool _isLoading = true;
 
   String? selectedValue;
   int _attendingCount = 0;
@@ -62,6 +108,33 @@ class _HomeViewState extends State<HomeView> {
 
     final response = await _authService.getInvitations(token);
     return response.data ?? [];
+  }
+
+  void _loadEvents() async {
+    try {
+      final token = await _storageService.getToken();
+      String invitationId = await _storageService
+          .getInvitationID(); // pastikan ada method ini
+      debugPrint('------');
+      debugPrint('load event invitation id: $invitationId');
+      if (token == null) {
+        _handleTokenErrorOnce('Token tidak valid');
+        return;
+      }
+
+      final response = await _authService.getEventsByInvitationId(
+        token: token,
+        invitationId: int.parse(invitationId),
+      );
+
+      setState(() {
+        _events = response.data ?? [];
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Gagal load events: $e');
+      _handleTokenErrorOnce(e.toString());
+    }
   }
 
   void showCreateInvitationPopup(BuildContext context) {
@@ -167,6 +240,109 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  void _showAddEventPopup() {
+    final nameController = TextEditingController();
+    final venueNameController = TextEditingController();
+    final venueAddressController = TextEditingController();
+    final dateController = TextEditingController();
+    final startTimeController = TextEditingController();
+    final endTimeController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final orderNumberController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Waktu & Tempat'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(labelText: 'Nama Acara'),
+                ),
+                TextField(
+                  controller: venueNameController,
+                  decoration: InputDecoration(labelText: 'Tempat'),
+                ),
+                TextField(
+                  controller: venueAddressController,
+                  decoration: InputDecoration(labelText: 'Alamat'),
+                ),
+                TextField(
+                  controller: dateController,
+                  decoration: InputDecoration(
+                    labelText: 'Tanggal (YYYY-MM-DD)',
+                  ),
+                ),
+                TextField(
+                  controller: startTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Jam Mulai (HH:mm:ss)',
+                  ),
+                ),
+                TextField(
+                  controller: endTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Jam Selesai (HH:mm:ss)',
+                  ),
+                ),
+                TextField(
+                  controller: descriptionController,
+                  decoration: InputDecoration(labelText: 'Deskripsi'),
+                ),
+                TextField(
+                  controller: orderNumberController,
+                  decoration: InputDecoration(labelText: 'Urutan'),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final token = await _storageService.getToken();
+                String invitationId = await _storageService.getInvitationID();
+                final response = await _authService.createEvent(
+                  token: token!,
+                  invitationId: int.parse(
+                    invitationId,
+                  ), // Ganti sesuai kebutuhan
+                  name: nameController.text,
+                  venueName: venueNameController.text,
+                  venueAddress: venueAddressController.text,
+                  date: '2025-12-15',
+                  startTime: '09:00:00',
+                  endTime: '11:00:00',
+                  description: descriptionController.text,
+                  orderNumber: int.tryParse(orderNumberController.text) ?? 1,
+                );
+
+                if (response.status == 201) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Acara berhasil dibuat")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Gagal membuat acara")),
+                  );
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -176,6 +352,7 @@ class _HomeViewState extends State<HomeView> {
     });
 
     _invitationsFuture = _loadInvitations();
+    // _loadEvents();
 
     // _calculateAttendingCount();
   }
@@ -239,8 +416,16 @@ class _HomeViewState extends State<HomeView> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+            _handleTokenErrorOnce(
+              snapshot.error.toString(),
+            ); // 🟢 Panggil fungsi khusus
           }
+
+          // if (snapshot.hasError) {
+          //   return Center(
+          //     child: Text('Terjadi kesalahan bro: ${snapshot.error}'),
+          //   );
+          // }
 
           final invitations = snapshot.data ?? [];
 
@@ -273,6 +458,11 @@ class _HomeViewState extends State<HomeView> {
                             ); // Ganti `token` sesuai yang kamu simpan
                           },
                           child: Text("Buat Undangan"),
+                        ),
+                        sw10,
+                        ElevatedButton(
+                          onPressed: _showAddEventPopup,
+                          child: Text("Tambah Acara"),
                         ),
                       ],
                     ),
@@ -345,10 +535,21 @@ class _HomeViewState extends State<HomeView> {
                             },
                             child: Text("Buat Undangan"),
                           ),
+                          sw10,
+                          ElevatedButton(
+                            onPressed: _showAddEventPopup,
+                            child: Text("Tambah Acara"),
+                          ),
                         ],
                       ),
                       sh16,
-
+                      ElevatedButton(
+                        onPressed: () {
+                          _loadEvents();
+                        },
+                        child: Text("Load Event"),
+                      ),
+                      sh16,
                       _buildWeddingInfoCard(invitation.title),
                       sh32,
                       _buildPresentationCard(),

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static const _tokenKey = 'token';
+  static const _invitationId = 'invitationID';
 
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -14,6 +15,18 @@ class StorageService {
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  Future<void> saveInvitationId(String invitationID) async {
+    final prefs = await SharedPreferences.getInstance();
+    debugPrint('----');
+    debugPrint('invitation id: $invitationID');
+    await prefs.setString(_invitationId, invitationID);
+  }
+
+  Future<String> getInvitationID() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_invitationId)!;
   }
 
   Future<void> clearAll() async {

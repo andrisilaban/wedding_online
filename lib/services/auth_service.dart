@@ -1,12 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:wedding_online/models/api_response.dart';
+import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
+import 'package:wedding_online/services/storage_service.dart';
 
 class AuthService {
   static const _key = 'token';
+  String defaultInvitationId = '999999999';
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: 'https://wedding.playroomzone.pro/api',
@@ -16,6 +19,8 @@ class AuthService {
       },
     ),
   );
+
+  final StorageService _storageService = StorageService();
 
   Future<ApiResponse<LoginModel>> login(String email, String password) async {
     try {
@@ -122,6 +127,9 @@ class AuthService {
       final invitations = dataList
           .map((json) => InvitationModel.fromJson(json as Map<String, dynamic>))
           .toList();
+      _storageService.saveInvitationId(
+        invitations.last.id?.toString() ?? defaultInvitationId,
+      );
 
       return ApiResponse(
         status: response.data['status'],
@@ -188,6 +196,46 @@ class AuthService {
 
       if (e.response != null && e.response?.data is Map<String, dynamic>) {
         throw Exception(e.response?.data['message'] ?? 'Gagal membuat acara');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  Future<ApiResponse<List<EventLoadModel>>> getEventsByInvitationId({
+    required String token,
+    required int invitationId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/events/invitation/$invitationId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET EVENTS BY INVITATION ---');
+      debugPrint(response.data.toString());
+
+      final dataList = response.data['data'] as List<dynamic>;
+      final events = dataList
+          .map((json) => EventLoadModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      return ApiResponse(
+        status: response.data['status'],
+        message: response.data['message'],
+        data: events,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET EVENTS ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat event');
       } else {
         throw Exception('Terjadi kesalahan jaringan');
       }
