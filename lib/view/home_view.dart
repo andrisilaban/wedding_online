@@ -1,5 +1,6 @@
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/models/event_load_model.dart';
@@ -8,6 +9,7 @@ import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
+import 'dart:async';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -75,6 +77,7 @@ class _HomeViewState extends State<HomeView> {
   String groomMotherName = 'Aminah';
   String brideFatherName = 'Joko';
   String brideMotherName = 'Sarah';
+  EventLoadModel tempEvent = EventLoadModel();
 
   final ConfettiController _confettiController = ConfettiController(
     duration: const Duration(seconds: 3),
@@ -107,6 +110,9 @@ class _HomeViewState extends State<HomeView> {
     }
 
     final response = await _authService.getInvitations(token);
+    if (response.data?.last.id != null) {
+      _loadEvents();
+    }
     return response.data ?? [];
   }
 
@@ -129,6 +135,7 @@ class _HomeViewState extends State<HomeView> {
 
       setState(() {
         _events = response.data ?? [];
+        tempEvent = response.data?.last ?? EventLoadModel();
         _isLoading = false;
       });
     } catch (e) {
@@ -250,6 +257,10 @@ class _HomeViewState extends State<HomeView> {
     final descriptionController = TextEditingController();
     final orderNumberController = TextEditingController();
 
+    DateTime? selectedDate;
+    TimeOfDay? selectedStartTime;
+    TimeOfDay? selectedEndTime;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -272,21 +283,50 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 TextField(
                   controller: dateController,
-                  decoration: InputDecoration(
-                    labelText: 'Tanggal (YYYY-MM-DD)',
-                  ),
+                  readOnly: true,
+                  decoration: InputDecoration(labelText: 'Tanggal'),
+                  onTap: () async {
+                    selectedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (selectedDate != null) {
+                      dateController.text =
+                          "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+                    }
+                  },
                 ),
                 TextField(
                   controller: startTimeController,
-                  decoration: InputDecoration(
-                    labelText: 'Jam Mulai (HH:mm:ss)',
-                  ),
+                  readOnly: true,
+                  decoration: InputDecoration(labelText: 'Jam Mulai'),
+                  onTap: () async {
+                    selectedStartTime = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay(hour: 9, minute: 0),
+                    );
+                    if (selectedStartTime != null) {
+                      startTimeController.text =
+                          "${selectedStartTime!.hour.toString().padLeft(2, '0')}:${selectedStartTime!.minute.toString().padLeft(2, '0')}:00";
+                    }
+                  },
                 ),
                 TextField(
                   controller: endTimeController,
-                  decoration: InputDecoration(
-                    labelText: 'Jam Selesai (HH:mm:ss)',
-                  ),
+                  readOnly: true,
+                  decoration: InputDecoration(labelText: 'Jam Selesai'),
+                  onTap: () async {
+                    selectedEndTime = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay(hour: 11, minute: 0),
+                    );
+                    if (selectedEndTime != null) {
+                      endTimeController.text =
+                          "${selectedEndTime!.hour.toString().padLeft(2, '0')}:${selectedEndTime!.minute.toString().padLeft(2, '0')}:00";
+                    }
+                  },
                 ),
                 TextField(
                   controller: descriptionController,
@@ -303,31 +343,50 @@ class _HomeViewState extends State<HomeView> {
           actions: [
             TextButton(
               onPressed: () async {
-                final token = await _storageService.getToken();
-                String invitationId = await _storageService.getInvitationID();
-                final response = await _authService.createEvent(
-                  token: token!,
-                  invitationId: int.parse(
-                    invitationId,
-                  ), // Ganti sesuai kebutuhan
-                  name: nameController.text,
-                  venueName: venueNameController.text,
-                  venueAddress: venueAddressController.text,
-                  date: '2025-12-15',
-                  startTime: '09:00:00',
-                  endTime: '11:00:00',
-                  description: descriptionController.text,
-                  orderNumber: int.tryParse(orderNumberController.text) ?? 1,
+                // Tampilkan loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => Center(
+                    child: CircularProgressIndicator(
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
                 );
 
-                if (response.status == 201) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Acara berhasil dibuat")),
+                try {
+                  final token = await _storageService.getToken();
+                  String invitationId = await _storageService.getInvitationID();
+
+                  final response = await _authService.createEvent(
+                    token: token!,
+                    invitationId: int.parse(invitationId),
+                    name: nameController.text,
+                    venueName: venueNameController.text,
+                    venueAddress: venueAddressController.text,
+                    date: dateController.text,
+                    startTime: startTimeController.text,
+                    endTime: endTimeController.text,
+                    description: descriptionController.text,
+                    orderNumber: int.tryParse(orderNumberController.text) ?? 1,
                   );
-                } else {
+
+                  Navigator.pop(context); // Tutup loading dialog
+
+                  if (response.status == 201) {
+                    Navigator.pop(context); // Tutup form popup
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Acara berhasil dibuat")),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Gagal membuat acara")),
+                    );
+                  }
+                } catch (e) {
+                  Navigator.pop(context); // Tutup loading dialog jika error
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Gagal membuat acara")),
+                    SnackBar(content: Text("Terjadi kesalahan: $e")),
                   );
                 }
               },
@@ -352,7 +411,7 @@ class _HomeViewState extends State<HomeView> {
     });
 
     _invitationsFuture = _loadInvitations();
-    // _loadEvents();
+    _loadEvents();
 
     // _calculateAttendingCount();
   }
@@ -471,7 +530,7 @@ class _HomeViewState extends State<HomeView> {
                     sh32,
                     _buildPresentationCard(),
                     sh32,
-                    _buildDateSection(),
+                    _buildDateSection(tempEvent),
                     sh32,
                     _buildCoupleSection(
                       groomFullName: groomFullName,
@@ -554,7 +613,7 @@ class _HomeViewState extends State<HomeView> {
                       sh32,
                       _buildPresentationCard(),
                       sh32,
-                      _buildDateSection(),
+                      _buildDateSection(tempEvent),
                       sh32,
                       _buildCoupleSection(
                         groomFullName:
@@ -739,7 +798,16 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildDateSection() {
+  Widget _buildDateSection(EventLoadModel tempEvent) {
+    DateTime parsedDate =
+        DateTime.tryParse(tempEvent.date ?? '') ??
+        DateTime(2025, 1, 1); // default kalau null/invalid
+
+    // Format: Rabu, 18 Juni 2025
+    String formattedDate = DateFormat(
+      'EEEE, d MMMM y',
+      'id_ID',
+    ).format(parsedDate);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
@@ -764,10 +832,11 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           const SizedBox(height: 16),
-          const CountdownTimer(),
+          CountdownTimer(eventDate: tempEvent.date),
+          // CountdownTimer(eventDate: tempEvent.date),
           const SizedBox(height: 20),
           Text(
-            "Rabu, 18 Juni 2025",
+            formattedDate ?? "Rabu, 18 Juni 2025",
             style: headerTextStyle.copyWith(
               fontSize: 24,
               fontFamily: 'Cormorant',
@@ -775,7 +844,8 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Pukul 13:30 - 20:00 WIB",
+            "Pukul ${tempEvent.startTime} - ${tempEvent.endTime} WIB" ??
+                "Pukul 13:30 - 20:00 WIB",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
@@ -783,13 +853,18 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Golden Ballroom - Grand Palace Hotel",
+            "${tempEvent.venueAddress}" ??
+                "Golden Ballroom - Grand Palace Hotel",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
           ),
-          Text("Jl. Raya Utama No. 123, Jakarta", style: bodyTextStyle),
+          Text(
+            "${tempEvent.venueName}"
+            "Jl. Raya Utama No. 123, Jakarta",
+            style: bodyTextStyle,
+          ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () async {

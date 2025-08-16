@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class CountdownTimer extends StatefulWidget {
-  const CountdownTimer({super.key});
+  final String? eventDate; // ubah jadi String
+
+  const CountdownTimer({super.key, this.eventDate});
 
   @override
   State<CountdownTimer> createState() => _CountdownTimerState();
@@ -21,7 +23,16 @@ class _CountdownTimerState extends State<CountdownTimer> {
   }
 
   void _initializeTimer() {
-    eventDate = DateTime(2025, 6, 1, 10, 0, 0); // 1 Juni 2025, pukul 10:00
+    try {
+      // Parse string ke DateTime, default ke 1 Okt 2025 jika null/invalid
+      eventDate = widget.eventDate != null
+          ? DateTime.parse(widget.eventDate!) // format: "2025-12-15"
+          : DateTime(2025, 10, 1, 10, 0, 0);
+    } catch (e) {
+      // kalau parsing gagal, fallback ke default
+      eventDate = DateTime(2025, 10, 1, 10, 0, 0);
+    }
+
     _updateRemainingTime();
     _startTimer();
   }
