@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/models/event_load_model.dart';
-import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
@@ -20,18 +19,6 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   bool _hasRedirected = false;
-
-  //   void _handleTokenErrorOnce(String error) {
-  //   if (_hasRedirected) return;
-
-  //   _hasRedirected = true;
-
-  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
-  //     await _storageService.clearAll();
-  //     if (!mounted) return;
-  //     Navigator.pushReplacementNamed(context, '/login');
-  //   });
-  // }
 
   void _handleTokenErrorOnce(String error) {
     if (_hasRedirected) return;
