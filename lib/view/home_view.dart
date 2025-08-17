@@ -66,6 +66,18 @@ class _HomeViewState extends State<HomeView> {
 
   List<EventLoadModel> _events = [];
   bool _isLoading = true;
+  EventLoadModel defaultEvent = EventLoadModel(
+    id: '1',
+    invitationId: '1',
+    name: 'Akad Nikah',
+    venueName: 'Gedung Pernikahan Bahagia',
+    venueAddress: 'Jl. Kebahagian No. 123, Jakarta',
+    date: '2026-12-15',
+    startTime: '09:00:00',
+    endTime: '11:00:00',
+    description: 'Acara akad nikah yang dihadiri keluarga dan kerabat dekat',
+    orderNumber: '1',
+  );
 
   String? selectedValue;
   int _attendingCount = 0;
@@ -541,7 +553,7 @@ class _HomeViewState extends State<HomeView> {
                       brideMotherName: brideMotherName,
                     ),
                     sh32,
-                    _buildEventSchedule(),
+                    _buildEventSchedule(defaultEvent: defaultEvent),
                     sh32,
                     _buildGallerySection(),
                     sh32,
@@ -630,7 +642,7 @@ class _HomeViewState extends State<HomeView> {
                             invitation.brideMotherName ?? brideMotherName,
                       ),
                       sh32,
-                      _buildEventSchedule(),
+                      _buildEventSchedule(defaultEvent: tempEvent),
                       sh32,
                       _buildGallerySection(),
                       sh32,
@@ -978,7 +990,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildEventSchedule() {
+  Widget _buildEventSchedule({required EventLoadModel defaultEvent}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: EdgeInsets.all(24),
@@ -997,15 +1009,19 @@ class _HomeViewState extends State<HomeView> {
           sh24,
           _buildScheduleItem(
             icon: Icons.mosque,
-            title: "Akad Nikah",
-            time: "13:30 - 15:00 WIB",
+            title: defaultEvent.name ?? "Akad Nikah",
+            time:
+                "${defaultEvent.startTime} - ${defaultEvent.endTime} WIB" ??
+                "13:30 - 15:00 WIB",
             description: "Ijab kabul dan penandatanganan buku nikah",
           ),
           const SizedBox(height: 16),
           _buildScheduleItem(
             icon: Icons.celebration,
             title: "Resepsi",
-            time: "15:30 - 20:00 WIB",
+            time:
+                "${defaultEvent.startTime} - ${defaultEvent.endTime} WIB" ??
+                "15:30 - 20:00 WIB",
             description: "Penyambutan tamu undangan dan jamuan makan",
           ),
         ],
