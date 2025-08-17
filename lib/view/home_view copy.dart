@@ -20,6 +20,33 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   bool _hasRedirected = false;
 
+  void _handleTokenErrorOnce(String error) {
+    if (_hasRedirected) return;
+
+    _hasRedirected = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Tampilkan snackbar sebelum redirect
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $error'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      await Future.delayed(
+        const Duration(seconds: 2),
+      ); // beri waktu tampil snackbar
+      await _storageService.clearAll();
+
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    });
+  }
+
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   late Future<List<InvitationModel>> _invitationsFuture;
@@ -86,33 +113,6 @@ class _HomeViewState extends State<HomeView> {
       _loadEvents();
     }
     return response.data ?? [];
-  }
-
-  void _handleTokenErrorOnce(String error) {
-    if (_hasRedirected) return;
-
-    _hasRedirected = true;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Tampilkan snackbar sebelum redirect
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Terjadi kesalahan: $error'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-
-      await Future.delayed(
-        const Duration(seconds: 2),
-      ); // beri waktu tampil snackbar
-      await _storageService.clearAll();
-
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/login');
-    });
   }
 
   void _loadEvents() async {
