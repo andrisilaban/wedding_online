@@ -10,6 +10,8 @@ import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
 import 'dart:async';
 
+import 'package:wedding_online/view/invitation_view.dart';
+
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -82,10 +84,24 @@ class _HomeViewState extends State<HomeView> {
     }
 
     final response = await _authService.getInvitations(token);
-    if (response.data?.last.id != null) {
+    final list = response.data ?? [];
+
+    if (list.isNotEmpty && list.last.id != null) {
       _loadEvents();
     }
-    return response.data ?? [];
+    return list;
+
+    // final response = await _authService.getInvitations(token);
+    // if (response.data?.last.id != null) {
+    //   _loadEvents();
+    // }
+    // return response.data ?? [];
+  }
+
+  void _refreshInvitations() {
+    setState(() {
+      _invitationsFuture = _loadInvitations();
+    });
   }
 
   void _handleTokenErrorOnce(String error) {
@@ -131,16 +147,98 @@ class _HomeViewState extends State<HomeView> {
         token: token,
         invitationId: int.parse(invitationId),
       );
-
       setState(() {
         _events = response.data ?? [];
-        tempEvent = response.data?.last ?? EventLoadModel();
+        if (response.data != null && response.data!.isNotEmpty) {
+          tempEvent = response.data!.last;
+        } else {
+          tempEvent = EventLoadModel();
+        }
         _isLoading = false;
       });
+
+      // setState(() {
+      //   _events = response.data ?? [];
+      //   tempEvent = response.data?.last ?? EventLoadModel();
+      //   _isLoading = false;
+      // });
     } catch (e) {
       debugPrint('Gagal load events: $e');
       _handleTokenErrorOnce(e.toString());
     }
+  }
+
+  void _showEditMenu() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DefaultTabController(
+          length: 4,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const TabBar(
+                labelColor: Colors.blue,
+                unselectedLabelColor: Colors.grey,
+                tabs: [
+                  Tab(icon: Icon(Icons.card_giftcard), text: "Undangan"),
+                  Tab(icon: Icon(Icons.event), text: "Acara"),
+                  Tab(icon: Icon(Icons.folder_open), text: "Event"),
+                  Tab(icon: Icon(Icons.logout), text: "Logout"),
+                ],
+              ),
+              SizedBox(
+                height: 450,
+                child: TabBarView(
+                  children: [
+                    // 🟢 Tab 1 → langsung tampil form undangan
+                    InvitationView(onSuccess: _refreshInvitations),
+
+                    // 🟢 Tab 2 → Acara
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // aksi tambah acara
+                        },
+                        child: const Text("Tambah Acara"),
+                      ),
+                    ),
+
+                    // 🟢 Tab 3 → Event
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // aksi load event
+                        },
+                        child: const Text("Load Event"),
+                      ),
+                    ),
+
+                    // 🟢 Tab 4 → Logout
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          // aksi logout
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        child: const Text("Logout"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void showCreateInvitationPopup(BuildContext context) {
@@ -466,6 +564,15 @@ class _HomeViewState extends State<HomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Home"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showEditMenu(),
+          ),
+        ],
+      ),
       body: FutureBuilder<List<InvitationModel>>(
         future: _invitationsFuture,
         builder: (context, snapshot) {
