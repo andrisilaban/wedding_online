@@ -8,6 +8,7 @@ import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
+import 'package:wedding_online/view/event_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
@@ -199,14 +200,15 @@ class _HomeViewState extends State<HomeView> {
                     InvitationView(onSuccess: _refreshInvitations),
 
                     // 🟢 Tab 2 → Acara
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // aksi tambah acara
-                        },
-                        child: const Text("Tambah Acara"),
-                      ),
-                    ),
+                    EventView(onSuccess: _refreshInvitations),
+                    // Center(
+                    //   child: ElevatedButton(
+                    //     onPressed: () {
+                    //       // aksi tambah acara
+                    //     },
+                    //     child: const Text("Tambah Acara"),
+                    //   ),
+                    // ),
 
                     // 🟢 Tab 3 → Event
                     Center(
@@ -219,18 +221,20 @@ class _HomeViewState extends State<HomeView> {
                     ),
 
                     // 🟢 Tab 4 → Logout
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          // aksi logout
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
-                        child: const Text("Logout"),
-                      ),
-                    ),
+                    Center(child: _buildLogoutButton()),
+                    // Center(
+                    //   child: ElevatedButton(
+                    //     onPressed: () {
+                    //       Navigator.pop(context);
+                    //       _buildLogoutButton();
+                    //       // aksi logout
+                    //     },
+                    //     style: ElevatedButton.styleFrom(
+                    //       backgroundColor: Colors.red,
+                    //     ),
+                    //     child: const Text("Logout"),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -763,12 +767,12 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildLogoutButton() => Align(
-    alignment: Alignment.centerRight,
     child: ElevatedButton(
       onPressed: () {
         _storageService.clearAll();
         Navigator.pushReplacementNamed(context, '/login');
       },
+
       child: const Text('Logout'),
     ),
   );
