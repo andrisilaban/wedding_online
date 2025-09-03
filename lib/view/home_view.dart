@@ -169,6 +169,40 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  void _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Konfirmasi Logout"),
+        content: const Text("Apakah kamu yakin ingin keluar?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Batal"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Ya"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+    if (!mounted) return;
+
+    // 🚀 1. navigasi dulu
+    Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamedAndRemoveUntil('/login', (route) => false);
+
+    // 🚀 2. baru hapus storage setelah frame berikutnya
+    Future.microtask(() async {
+      await _storageService.clearAll();
+    });
+  }
+
   void _showEditMenu() {
     showModalBottomSheet(
       context: context,
@@ -201,6 +235,7 @@ class _HomeViewState extends State<HomeView> {
 
                     // 🟢 Tab 2 → Acara
                     EventView(onSuccess: _refreshInvitations),
+
                     // Center(
                     //   child: ElevatedButton(
                     //     onPressed: () {
@@ -215,6 +250,7 @@ class _HomeViewState extends State<HomeView> {
                       child: ElevatedButton(
                         onPressed: () {
                           // aksi load event
+                          _loadEvents();
                         },
                         child: const Text("Load Event"),
                       ),
@@ -574,6 +610,11 @@ class _HomeViewState extends State<HomeView> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () => _showEditMenu(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Logout",
+            onPressed: _logout,
           ),
         ],
       ),

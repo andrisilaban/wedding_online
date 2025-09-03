@@ -48,34 +48,26 @@ class _EventViewState extends State<EventView> {
       );
 
       if (response.status == 201) {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Acara berhasil dibuat")));
-        _resetForm();
-        widget.onSuccess(); // panggil callback agar home_view bisa refresh
+        widget.onSuccess(); // trigger refresh di home_view
+        Navigator.pop(context); // ✅ keluar dari EventView
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Gagal membuat acara")));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Terjadi kesalahan: $e")));
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _resetForm() {
-    nameController.clear();
-    venueNameController.clear();
-    venueAddressController.clear();
-    dateController.clear();
-    startTimeController.clear();
-    endTimeController.clear();
-    descriptionController.clear();
-    orderNumberController.clear();
   }
 
   @override
@@ -93,86 +85,89 @@ class _EventViewState extends State<EventView> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Nama Acara'),
-          ),
-          TextField(
-            controller: venueNameController,
-            decoration: const InputDecoration(labelText: 'Tempat'),
-          ),
-          TextField(
-            controller: venueAddressController,
-            decoration: const InputDecoration(labelText: 'Alamat'),
-          ),
-          TextField(
-            controller: dateController,
-            readOnly: true,
-            decoration: const InputDecoration(labelText: 'Tanggal'),
-            onTap: () async {
-              final selectedDate = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(2020),
-                lastDate: DateTime(2030),
-              );
-              if (selectedDate != null) {
-                dateController.text =
-                    "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-              }
-            },
-          ),
-          TextField(
-            controller: startTimeController,
-            readOnly: true,
-            decoration: const InputDecoration(labelText: 'Jam Mulai'),
-            onTap: () async {
-              final selectedTime = await showTimePicker(
-                context: context,
-                initialTime: const TimeOfDay(hour: 9, minute: 0),
-              );
-              if (selectedTime != null) {
-                startTimeController.text =
-                    "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
-              }
-            },
-          ),
-          TextField(
-            controller: endTimeController,
-            readOnly: true,
-            decoration: const InputDecoration(labelText: 'Jam Selesai'),
-            onTap: () async {
-              final selectedTime = await showTimePicker(
-                context: context,
-                initialTime: const TimeOfDay(hour: 11, minute: 0),
-              );
-              if (selectedTime != null) {
-                endTimeController.text =
-                    "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
-              }
-            },
-          ),
-          TextField(
-            controller: descriptionController,
-            decoration: const InputDecoration(labelText: 'Deskripsi'),
-          ),
-          TextField(
-            controller: orderNumberController,
-            decoration: const InputDecoration(labelText: 'Urutan'),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 20),
-          _isLoading
-              ? const CircularProgressIndicator()
-              : ElevatedButton(
-                  onPressed: _submitEvent,
-                  child: const Text("Simpan Acara"),
-                ),
-        ],
+    return Scaffold(
+      appBar: AppBar(title: const Text("Tambah Acara")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Nama Acara'),
+            ),
+            TextField(
+              controller: venueNameController,
+              decoration: const InputDecoration(labelText: 'Tempat'),
+            ),
+            TextField(
+              controller: venueAddressController,
+              decoration: const InputDecoration(labelText: 'Alamat'),
+            ),
+            TextField(
+              controller: dateController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Tanggal'),
+              onTap: () async {
+                final selectedDate = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                );
+                if (selectedDate != null) {
+                  dateController.text =
+                      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+                }
+              },
+            ),
+            TextField(
+              controller: startTimeController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Jam Mulai'),
+              onTap: () async {
+                final selectedTime = await showTimePicker(
+                  context: context,
+                  initialTime: const TimeOfDay(hour: 9, minute: 0),
+                );
+                if (selectedTime != null) {
+                  startTimeController.text =
+                      "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
+                }
+              },
+            ),
+            TextField(
+              controller: endTimeController,
+              readOnly: true,
+              decoration: const InputDecoration(labelText: 'Jam Selesai'),
+              onTap: () async {
+                final selectedTime = await showTimePicker(
+                  context: context,
+                  initialTime: const TimeOfDay(hour: 11, minute: 0),
+                );
+                if (selectedTime != null) {
+                  endTimeController.text =
+                      "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
+                }
+              },
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Deskripsi'),
+            ),
+            TextField(
+              controller: orderNumberController,
+              decoration: const InputDecoration(labelText: 'Urutan'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 20),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _submitEvent,
+                    child: const Text("Simpan"),
+                  ),
+          ],
+        ),
       ),
     );
   }
