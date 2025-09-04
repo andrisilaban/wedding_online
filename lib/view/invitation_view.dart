@@ -27,7 +27,18 @@ class _InvitationViewState extends State<InvitationView> {
     setState(() => _loading = true);
 
     try {
-      String token = await StorageService().getToken() ?? '';
+      final token = await StorageService().getToken();
+      if (token == null) {
+        if (!mounted) return;
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).pushReplacementNamed('/login');
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _loading = false);
+
       final authService = AuthService();
 
       final data = {
@@ -57,7 +68,9 @@ class _InvitationViewState extends State<InvitationView> {
       }
 
       widget.onSuccess(); // refresh daftar undangan di HomeView
-      Navigator.of(context).pop();
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context); // ✅ aman
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

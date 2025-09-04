@@ -170,37 +170,11 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Konfirmasi Logout"),
-        content: const Text("Apakah kamu yakin ingin keluar?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Batal"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Ya"),
-          ),
-        ],
-      ),
-    );
+    await _storageService.clearAll();
 
-    if (confirm != true) return;
     if (!mounted) return;
 
-    // 🚀 1. navigasi dulu
-    Navigator.of(
-      context,
-      rootNavigator: true,
-    ).pushNamedAndRemoveUntil('/login', (route) => false);
-
-    // 🚀 2. baru hapus storage setelah frame berikutnya
-    Future.microtask(() async {
-      await _storageService.clearAll();
-    });
+    Navigator.of(context, rootNavigator: true).pushReplacementNamed('/login');
   }
 
   void _showEditMenu() {
@@ -370,7 +344,9 @@ class _HomeViewState extends State<HomeView> {
                   SnackBar(content: Text('Undangan berhasil dibuat!')),
                 );
 
-                Navigator.pop(context);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
 
                 setState(() {
                   _invitationsFuture = _loadInvitations();
@@ -508,10 +484,16 @@ class _HomeViewState extends State<HomeView> {
                     orderNumber: int.tryParse(orderNumberController.text) ?? 1,
                   );
 
-                  Navigator.pop(context); // Tutup loading dialog
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  // Tutup loading dialog
 
                   if (response.status == 201) {
-                    Navigator.pop(context); // Tutup form popup
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Acara berhasil dibuat")),
                     );
@@ -521,7 +503,10 @@ class _HomeViewState extends State<HomeView> {
                     );
                   }
                 } catch (e) {
-                  Navigator.pop(context); // Tutup loading dialog jika error
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Terjadi kesalahan: $e")),
                   );

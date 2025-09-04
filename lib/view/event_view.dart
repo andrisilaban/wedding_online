@@ -31,11 +31,22 @@ class _EventViewState extends State<EventView> {
     setState(() => _isLoading = true);
 
     try {
-      final token = await _storageService.getToken();
+      final token = await StorageService().getToken();
+      if (token == null) {
+        if (!mounted) return;
+        Navigator.of(
+          context,
+          rootNavigator: true,
+        ).pushReplacementNamed('/login');
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
       final invitationId = await _storageService.getInvitationID();
 
       final response = await _authService.createEvent(
-        token: token!,
+        token: token,
         invitationId: int.parse(invitationId),
         name: nameController.text,
         venueName: venueNameController.text,
@@ -53,7 +64,9 @@ class _EventViewState extends State<EventView> {
           context,
         ).showSnackBar(const SnackBar(content: Text("Acara berhasil dibuat")));
         widget.onSuccess(); // trigger refresh di home_view
-        Navigator.pop(context); // ✅ keluar dari EventView
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(
