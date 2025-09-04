@@ -643,24 +643,25 @@ class _HomeViewState extends State<HomeView> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     sh32,
-                    Row(
-                      children: [
-                        _buildLogoutButton(),
-                        ElevatedButton(
-                          onPressed: () {
-                            showCreateInvitationPopup(
-                              context,
-                            ); // Ganti `token` sesuai yang kamu simpan
-                          },
-                          child: Text("Buat Undangan"),
-                        ),
-                        sw10,
-                        ElevatedButton(
-                          onPressed: _showAddEventPopup,
-                          child: Text("Tambah Acara"),
-                        ),
-                      ],
-                    ),
+                    // Row(
+                    //   children: [
+                    //     _buildLogoutButton(),
+                    //     ElevatedButton(
+                    //       onPressed: () {
+                    //         showCreateInvitationPopup(
+                    //           context,
+                    //         ); // Ganti `token` sesuai yang kamu simpan
+                    //       },
+                    //       child: Text("Buat Undangan"),
+                    //     ),
+                    //     sw10,
+                    //     ElevatedButton(
+                    //       onPressed: _showAddEventPopup,
+                    //       child: Text("Tambah Acara"),
+                    //     ),
+                    //   ],
+                    // ),
+                    _buildLogoutButton(),
                     sh16,
                     _buildWeddingInfoCard(groomBrideTitle),
                     sh32,
@@ -719,31 +720,33 @@ class _HomeViewState extends State<HomeView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       sh32,
-                      Row(
-                        children: [
-                          _buildLogoutButton(),
-                          ElevatedButton(
-                            onPressed: () {
-                              showCreateInvitationPopup(
-                                context,
-                              ); // Ganti `token` sesuai yang kamu simpan
-                            },
-                            child: Text("Buat Undangan"),
-                          ),
-                          sw10,
-                          ElevatedButton(
-                            onPressed: _showAddEventPopup,
-                            child: Text("Tambah Acara"),
-                          ),
-                        ],
-                      ),
+
+                      // Row(
+                      //   children: [
+                      //     _buildLogoutButton(),
+                      //     ElevatedButton(
+                      //       onPressed: () {
+                      //         showCreateInvitationPopup(
+                      //           context,
+                      //         ); // Ganti `token` sesuai yang kamu simpan
+                      //       },
+                      //       child: Text("Buat Undangan"),
+                      //     ),
+                      //     sw10,
+                      //     ElevatedButton(
+                      //       onPressed: _showAddEventPopup,
+                      //       child: Text("Tambah Acara"),
+                      //     ),
+                      //   ],
+                      // ),
+                      _buildLogoutButton(),
                       sh16,
-                      ElevatedButton(
-                        onPressed: () {
-                          _loadEvents();
-                        },
-                        child: Text("Load Event"),
-                      ),
+                      // ElevatedButton(
+                      //   onPressed: () {
+                      //     _loadEvents();
+                      //   },
+                      //   child: Text("Load Event"),
+                      // ),
                       sh16,
                       _buildWeddingInfoCard(invitation.title),
                       sh32,
