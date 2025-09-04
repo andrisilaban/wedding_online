@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
