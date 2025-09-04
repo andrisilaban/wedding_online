@@ -603,195 +603,195 @@ class _HomeViewState extends State<HomeView> {
           ),
         ],
       ),
-      body: FutureBuilder<List<InvitationModel>>(
-        future: _invitationsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      // body: FutureBuilder<List<InvitationModel>>(
+      //   future: _invitationsFuture,
+      //   builder: (context, snapshot) {
+      //     if (snapshot.connectionState == ConnectionState.waiting) {
+      //       return const Center(child: CircularProgressIndicator());
+      //     }
 
-          if (snapshot.hasError) {
-            _handleTokenErrorOnce(
-              snapshot.error.toString(),
-            ); // 🟢 Panggil fungsi khusus
-          }
+      //     if (snapshot.hasError) {
+      //       _handleTokenErrorOnce(
+      //         snapshot.error.toString(),
+      //       ); // 🟢 Panggil fungsi khusus
+      //     }
 
-          // if (snapshot.hasError) {
-          //   return Center(
-          //     child: Text('Terjadi kesalahan bro: ${snapshot.error}'),
-          //   );
-          // }
+      //     // if (snapshot.hasError) {
+      //     //   return Center(
+      //     //     child: Text('Terjadi kesalahan bro: ${snapshot.error}'),
+      //     //   );
+      //     // }
 
-          final invitations = snapshot.data ?? [];
+      //     final invitations = snapshot.data ?? [];
 
-          if (invitations.isEmpty) {
-            return Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.purple.shade900,
-                    Colors.purple.shade700,
-                    Colors.purple.shade400,
-                    Colors.purple.shade300,
-                  ],
-                ),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    sh32,
-                    // Row(
-                    //   children: [
-                    //     _buildLogoutButton(),
-                    //     ElevatedButton(
-                    //       onPressed: () {
-                    //         showCreateInvitationPopup(
-                    //           context,
-                    //         ); // Ganti `token` sesuai yang kamu simpan
-                    //       },
-                    //       child: Text("Buat Undangan"),
-                    //     ),
-                    //     sw10,
-                    //     ElevatedButton(
-                    //       onPressed: _showAddEventPopup,
-                    //       child: Text("Tambah Acara"),
-                    //     ),
-                    //   ],
-                    // ),
-                    _buildLogoutButton(),
-                    sh16,
-                    _buildWeddingInfoCard(groomBrideTitle),
-                    sh32,
-                    _buildPresentationCard(),
-                    sh32,
-                    _buildDateSection(tempEvent),
-                    sh32,
-                    _buildCoupleSection(
-                      groomFullName: groomFullName,
-                      brideFullName: brideFullName,
-                      groomFatherName: groomFatherName,
-                      groomMotherName: groomMotherName,
-                      brideFatherName: brideFatherName,
-                      brideMotherName: brideMotherName,
-                    ),
-                    sh32,
-                    _buildEventSchedule(defaultEvent: defaultEvent),
-                    sh32,
-                    _buildGallerySection(),
-                    sh32,
-                    _buildLiveStreamSection(),
-                    sh32,
-                    _buildAttendanceSection(),
-                    sh32,
-                    _buildCommentsSection(),
-                    sh32,
-                    _buildGiftSection(),
-                    sh32,
-                    _buildThankYouSection(),
-                    const SizedBox(height: 40),
-                    _buildMomenkuSection(),
-                  ],
-                ),
-              ),
-            );
-          }
-          return ListView.builder(
-            itemCount: invitations.length,
-            itemBuilder: (context, index) {
-              final invitation = invitations[index];
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.purple.shade900,
-                      Colors.purple.shade700,
-                      Colors.purple.shade400,
-                      Colors.purple.shade300,
-                    ],
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      sh32,
+      //     if (invitations.isEmpty) {
+      //       return Container(
+      //         decoration: BoxDecoration(
+      //           gradient: LinearGradient(
+      //             begin: Alignment.topCenter,
+      //             end: Alignment.bottomCenter,
+      //             colors: [
+      //               Colors.purple.shade900,
+      //               Colors.purple.shade700,
+      //               Colors.purple.shade400,
+      //               Colors.purple.shade300,
+      //             ],
+      //           ),
+      //         ),
+      //         child: SingleChildScrollView(
+      //           child: Column(
+      //             crossAxisAlignment: CrossAxisAlignment.center,
+      //             children: [
+      //               sh32,
+      //               // Row(
+      //               //   children: [
+      //               //     _buildLogoutButton(),
+      //               //     ElevatedButton(
+      //               //       onPressed: () {
+      //               //         showCreateInvitationPopup(
+      //               //           context,
+      //               //         ); // Ganti `token` sesuai yang kamu simpan
+      //               //       },
+      //               //       child: Text("Buat Undangan"),
+      //               //     ),
+      //               //     sw10,
+      //               //     ElevatedButton(
+      //               //       onPressed: _showAddEventPopup,
+      //               //       child: Text("Tambah Acara"),
+      //               //     ),
+      //               //   ],
+      //               // ),
+      //               // _buildLogoutButton(),
+      //               // sh16,
+      //               // _buildWeddingInfoCard(groomBrideTitle),
+      //               // sh32,
+      //               // _buildPresentationCard(),
+      //               // sh32,
+      //               // _buildDateSection(tempEvent),
+      //               // sh32,
+      //               // _buildCoupleSection(
+      //               //   groomFullName: groomFullName,
+      //               //   brideFullName: brideFullName,
+      //               //   groomFatherName: groomFatherName,
+      //               //   groomMotherName: groomMotherName,
+      //               //   brideFatherName: brideFatherName,
+      //               //   brideMotherName: brideMotherName,
+      //               // ),
+      //               // sh32,
+      //               // _buildEventSchedule(defaultEvent: defaultEvent),
+      //               // sh32,
+      //               // _buildGallerySection(),
+      //               // sh32,
+      //               // _buildLiveStreamSection(),
+      //               // sh32,
+      //               // _buildAttendanceSection(),
+      //               // sh32,
+      //               // _buildCommentsSection(),
+      //               // sh32,
+      //               // _buildGiftSection(),
+      //               // sh32,
+      //               // _buildThankYouSection(),
+      //               // const SizedBox(height: 40),
+      //               // _buildMomenkuSection(),
+      //             ],
+      //           ),
+      //         ),
+      //       );
+      //     }
+      //     return ListView.builder(
+      //       itemCount: invitations.length,
+      //       itemBuilder: (context, index) {
+      //         final invitation = invitations[index];
+      //         return Container(
+      //           decoration: BoxDecoration(
+      //             gradient: LinearGradient(
+      //               begin: Alignment.topCenter,
+      //               end: Alignment.bottomCenter,
+      //               colors: [
+      //                 Colors.purple.shade900,
+      //                 Colors.purple.shade700,
+      //                 Colors.purple.shade400,
+      //                 Colors.purple.shade300,
+      //               ],
+      //             ),
+      //           ),
+      //           child: SingleChildScrollView(
+      //             // child: Column(
+      //             //   crossAxisAlignment: CrossAxisAlignment.center,
+      //             //   children: [
+      //             //     sh32,
 
-                      // Row(
-                      //   children: [
-                      //     _buildLogoutButton(),
-                      //     ElevatedButton(
-                      //       onPressed: () {
-                      //         showCreateInvitationPopup(
-                      //           context,
-                      //         ); // Ganti `token` sesuai yang kamu simpan
-                      //       },
-                      //       child: Text("Buat Undangan"),
-                      //     ),
-                      //     sw10,
-                      //     ElevatedButton(
-                      //       onPressed: _showAddEventPopup,
-                      //       child: Text("Tambah Acara"),
-                      //     ),
-                      //   ],
-                      // ),
-                      _buildLogoutButton(),
-                      sh16,
-                      // ElevatedButton(
-                      //   onPressed: () {
-                      //     _loadEvents();
-                      //   },
-                      //   child: Text("Load Event"),
-                      // ),
-                      sh16,
-                      _buildWeddingInfoCard(invitation.title),
-                      sh32,
-                      _buildPresentationCard(),
-                      sh32,
-                      _buildDateSection(tempEvent),
-                      sh32,
-                      _buildCoupleSection(
-                        groomFullName:
-                            invitation.groomFullName ?? groomFullName,
-                        brideFullName:
-                            invitation.brideFullName ?? brideFullName,
-                        groomFatherName:
-                            invitation.groomFatherName ?? groomFatherName,
-                        groomMotherName:
-                            invitation.groomMotherName ?? groomMotherName,
-                        brideFatherName:
-                            invitation.brideFatherName ?? brideFatherName,
-                        brideMotherName:
-                            invitation.brideMotherName ?? brideMotherName,
-                      ),
-                      sh32,
-                      _buildEventSchedule(defaultEvent: tempEvent),
-                      sh32,
-                      _buildGallerySection(),
-                      sh32,
-                      _buildLiveStreamSection(),
-                      sh32,
-                      _buildAttendanceSection(),
-                      sh32,
-                      _buildCommentsSection(),
-                      sh32,
-                      _buildGiftSection(),
-                      sh32,
-                      _buildThankYouSection(),
-                      const SizedBox(height: 40),
-                      _buildMomenkuSection(),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+      //             //     // Row(
+      //             //     //   children: [
+      //             //     //     _buildLogoutButton(),
+      //             //     //     ElevatedButton(
+      //             //     //       onPressed: () {
+      //             //     //         showCreateInvitationPopup(
+      //             //     //           context,
+      //             //     //         ); // Ganti `token` sesuai yang kamu simpan
+      //             //     //       },
+      //             //     //       child: Text("Buat Undangan"),
+      //             //     //     ),
+      //             //     //     sw10,
+      //             //     //     ElevatedButton(
+      //             //     //       onPressed: _showAddEventPopup,
+      //             //     //       child: Text("Tambah Acara"),
+      //             //     //     ),
+      //             //     //   ],
+      //             //     // ),
+      //             //     _buildLogoutButton(),
+      //             //     sh16,
+      //             //     // ElevatedButton(
+      //             //     //   onPressed: () {
+      //             //     //     _loadEvents();
+      //             //     //   },
+      //             //     //   child: Text("Load Event"),
+      //             //     // ),
+      //             //     sh16,
+      //             //     _buildWeddingInfoCard(invitation.title),
+      //             //     sh32,
+      //             //     _buildPresentationCard(),
+      //             //     sh32,
+      //             //     _buildDateSection(tempEvent),
+      //             //     sh32,
+      //             //     _buildCoupleSection(
+      //             //       groomFullName:
+      //             //           invitation.groomFullName ?? groomFullName,
+      //             //       brideFullName:
+      //             //           invitation.brideFullName ?? brideFullName,
+      //             //       groomFatherName:
+      //             //           invitation.groomFatherName ?? groomFatherName,
+      //             //       groomMotherName:
+      //             //           invitation.groomMotherName ?? groomMotherName,
+      //             //       brideFatherName:
+      //             //           invitation.brideFatherName ?? brideFatherName,
+      //             //       brideMotherName:
+      //             //           invitation.brideMotherName ?? brideMotherName,
+      //             //     ),
+      //             //     sh32,
+      //             //     _buildEventSchedule(defaultEvent: tempEvent),
+      //             //     sh32,
+      //             //     _buildGallerySection(),
+      //             //     sh32,
+      //             //     _buildLiveStreamSection(),
+      //             //     sh32,
+      //             //     _buildAttendanceSection(),
+      //             //     sh32,
+      //             //     _buildCommentsSection(),
+      //             //     sh32,
+      //             //     _buildGiftSection(),
+      //             //     sh32,
+      //             //     _buildThankYouSection(),
+      //             //     const SizedBox(height: 40),
+      //             //     _buildMomenkuSection(),
+      //             //   ],
+      //             // ),
+      //           ),
+      //         );
+      //       },
+      //     );
+      //   },
+      // ),
     );
   }
 
