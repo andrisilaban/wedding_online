@@ -11,7 +11,7 @@ class EventView extends StatefulWidget {
   _EventViewState createState() => _EventViewState();
 }
 
-class _EventViewState extends State<EventView> {
+class _EventViewState extends State<EventView> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
 
@@ -26,6 +26,156 @@ class _EventViewState extends State<EventView> {
   final TextEditingController orderNumberController = TextEditingController();
 
   bool _isLoading = false;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
+  }
+
+  // Custom TextField widget with beautiful styling
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    IconData? prefixIcon,
+    IconData? suffixIcon,
+    bool isRequired = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              text: label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2C3E50),
+              ),
+              children: isRequired
+                  ? [
+                      const TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Color(0xFFE74C3C)),
+                      ),
+                    ]
+                  : [],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: controller,
+              readOnly: readOnly,
+              onTap: onTap,
+              keyboardType: keyboardType,
+              maxLines: maxLines,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2C3E50),
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: prefixIcon != null
+                    ? Container(
+                        margin: const EdgeInsets.only(left: 8, right: 8),
+                        child: Icon(
+                          prefixIcon,
+                          color: const Color(0xFF3498DB),
+                          size: 22,
+                        ),
+                      )
+                    : null,
+                suffixIcon: suffixIcon != null
+                    ? Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        child: Icon(
+                          suffixIcon,
+                          color: const Color(0xFF7F8C8D),
+                          size: 22,
+                        ),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: Colors.grey.shade200,
+                    width: 1.5,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF3498DB),
+                    width: 2.5,
+                  ),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE74C3C),
+                    width: 2,
+                  ),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE74C3C),
+                    width: 2.5,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _submitEvent() async {
     setState(() => _isLoading = true);
@@ -41,39 +191,26 @@ class _EventViewState extends State<EventView> {
         return;
       }
 
-      // Perbaikan: Handle nullable invitation ID
       final invitationId = await _storageService.getInvitationID();
 
-      // Check if invitation ID is null or empty
       if (invitationId == null || invitationId.isEmpty) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Invitation ID tidak tersedia. Silakan buat undangan terlebih dahulu.",
-            ),
-            backgroundColor: Colors.orange,
-          ),
+        _showSnackBar(
+          "Invitation ID tidak tersedia. Silakan buat undangan terlebih dahulu.",
+          Colors.orange,
         );
         return;
       }
 
-      // Validate that invitation ID is a valid number
       final parsedInvitationId = int.tryParse(invitationId);
       if (parsedInvitationId == null) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Invitation ID tidak valid."),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar("Invitation ID tidak valid.", Colors.red);
         return;
       }
 
-      // Validate form fields
       if (nameController.text.isEmpty ||
           venueNameController.text.isEmpty ||
           dateController.text.isEmpty ||
@@ -81,11 +218,9 @@ class _EventViewState extends State<EventView> {
           endTimeController.text.isEmpty) {
         if (!mounted) return;
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Mohon lengkapi semua field yang wajib diisi."),
-            backgroundColor: Colors.orange,
-          ),
+        _showSnackBar(
+          "Mohon lengkapi semua field yang wajib diisi.",
+          Colors.orange,
         );
         return;
       }
@@ -106,40 +241,37 @@ class _EventViewState extends State<EventView> {
       if (!mounted) return;
 
       if (response.status == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Acara berhasil dibuat"),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Clear form after successful submission
+        _showSnackBar("Acara berhasil dibuat", Colors.green);
         _clearForm();
-
-        widget.onSuccess(); // trigger refresh di home_view
+        widget.onSuccess();
 
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Gagal membuat acara"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar("Gagal membuat acara", Colors.red);
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Terjadi kesalahan: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackBar("Terjadi kesalahan: $e", Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   void _clearForm() {
@@ -155,6 +287,7 @@ class _EventViewState extends State<EventView> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     nameController.dispose();
     venueNameController.dispose();
     venueAddressController.dispose();
@@ -169,152 +302,326 @@ class _EventViewState extends State<EventView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Tambah Acara")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Nama Acara *',
-                hintText: 'Contoh: Akad Nikah, Resepsi',
-                border: OutlineInputBorder(),
-              ),
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text(
+          "Tambah Acara",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(0xFF3498DB),
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: venueNameController,
-              decoration: const InputDecoration(
-                labelText: 'Tempat *',
-                hintText: 'Contoh: Gedung Serbaguna',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: venueAddressController,
-              decoration: const InputDecoration(
-                labelText: 'Alamat',
-                hintText: 'Alamat lengkap tempat acara',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: dateController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                labelText: 'Tanggal *',
-                hintText: 'Pilih tanggal acara',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.calendar_today),
-              ),
-              onTap: () async {
-                final selectedDate = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime(2030),
-                );
-                if (selectedDate != null) {
-                  dateController.text =
-                      "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: startTimeController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                labelText: 'Jam Mulai *',
-                hintText: 'Pilih jam mulai',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.access_time),
-              ),
-              onTap: () async {
-                final selectedTime = await showTimePicker(
-                  context: context,
-                  initialTime: const TimeOfDay(hour: 9, minute: 0),
-                );
-                if (selectedTime != null) {
-                  startTimeController.text =
-                      "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: endTimeController,
-              readOnly: true,
-              decoration: const InputDecoration(
-                labelText: 'Jam Selesai *',
-                hintText: 'Pilih jam selesai',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.access_time),
-              ),
-              onTap: () async {
-                final selectedTime = await showTimePicker(
-                  context: context,
-                  initialTime: const TimeOfDay(hour: 11, minute: 0),
-                );
-                if (selectedTime != null) {
-                  endTimeController.text =
-                      "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Deskripsi',
-                hintText: 'Deskripsi singkat tentang acara',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: orderNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Urutan',
-                hintText: 'Urutan acara (1, 2, 3, ...)',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _submitEvent,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Section
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3498DB), Color(0xFF2980B9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.event_note,
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
-                      child: const Text(
-                        "Simpan Acara",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Buat Acara Baru",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Isi detail acara dengan lengkap",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Form Fields
+                _buildStyledTextField(
+                  controller: nameController,
+                  label: "Nama Acara",
+                  hint: "Contoh: Akad Nikah, Resepsi",
+                  prefixIcon: Icons.celebration,
+                  isRequired: true,
+                ),
+
+                _buildStyledTextField(
+                  controller: venueNameController,
+                  label: "Tempat",
+                  hint: "Contoh: Gedung Serbaguna",
+                  prefixIcon: Icons.location_city,
+                  isRequired: true,
+                ),
+
+                _buildStyledTextField(
+                  controller: venueAddressController,
+                  label: "Alamat",
+                  hint: "Alamat lengkap tempat acara",
+                  prefixIcon: Icons.map,
+                ),
+
+                _buildStyledTextField(
+                  controller: dateController,
+                  label: "Tanggal",
+                  hint: "Pilih tanggal acara",
+                  prefixIcon: Icons.calendar_month,
+                  suffixIcon: Icons.arrow_drop_down,
+                  isRequired: true,
+                  readOnly: true,
+                  onTap: () async {
+                    final selectedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2030),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: Color(0xFF3498DB),
+                              onPrimary: Colors.white,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (selectedDate != null) {
+                      dateController.text =
+                          "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+                    }
+                  },
+                ),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStyledTextField(
+                        controller: startTimeController,
+                        label: "Jam Mulai",
+                        hint: "Mulai",
+                        prefixIcon: Icons.access_time,
+                        isRequired: true,
+                        readOnly: true,
+                        onTap: () async {
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 9, minute: 0),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF3498DB),
+                                    onPrimary: Colors.white,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (selectedTime != null) {
+                            startTimeController.text =
+                                "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
+                          }
+                        },
                       ),
                     ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStyledTextField(
+                        controller: endTimeController,
+                        label: "Jam Selesai",
+                        hint: "Selesai",
+                        prefixIcon: Icons.access_time_filled,
+                        isRequired: true,
+                        readOnly: true,
+                        onTap: () async {
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: const TimeOfDay(hour: 11, minute: 0),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF3498DB),
+                                    onPrimary: Colors.white,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (selectedTime != null) {
+                            endTimeController.text =
+                                "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}:00";
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                _buildStyledTextField(
+                  controller: descriptionController,
+                  label: "Deskripsi",
+                  hint: "Deskripsi singkat tentang acara",
+                  prefixIcon: Icons.description,
+                  maxLines: 3,
+                ),
+
+                _buildStyledTextField(
+                  controller: orderNumberController,
+                  label: "Urutan",
+                  hint: "Urutan acara (1, 2, 3, ...)",
+                  prefixIcon: Icons.format_list_numbered,
+                  keyboardType: TextInputType.number,
+                ),
+
+                const SizedBox(height: 32),
+
+                // Submit Button
+                Container(
+                  width: double.infinity,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3498DB), Color(0xFF2980B9)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3498DB).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: _isLoading ? null : _submitEvent,
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.save_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    "Simpan Acara",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Required fields note
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "* Field wajib diisi",
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            const Text(
-              "* Field wajib diisi",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-          ],
+          ),
         ),
       ),
     );
