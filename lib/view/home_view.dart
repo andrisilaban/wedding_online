@@ -135,12 +135,26 @@ class _HomeViewState extends State<HomeView> {
   void _loadEvents() async {
     try {
       final token = await _storageService.getToken();
-      String invitationId = await _storageService
-          .getInvitationID(); // pastikan ada method ini
+
+      // Perbaikan: Handle null invitation ID
+      String? invitationId = await _storageService.getInvitationID();
+
       debugPrint('------');
       debugPrint('load event invitation id: $invitationId');
+
       if (token == null) {
         _handleTokenErrorOnce('Token tidak valid');
+        return;
+      }
+
+      // Perbaikan: Check if invitationId is null atau empty
+      if (invitationId == null || invitationId.isEmpty || invitationId == '0') {
+        debugPrint('Invitation ID tidak tersedia, skip load events');
+        setState(() {
+          _events = [];
+          tempEvent = EventLoadModel();
+          _isLoading = false;
+        });
         return;
       }
 
@@ -148,6 +162,7 @@ class _HomeViewState extends State<HomeView> {
         token: token,
         invitationId: int.parse(invitationId),
       );
+
       setState(() {
         _events = response.data ?? [];
         if (response.data != null && response.data!.isNotEmpty) {
@@ -157,14 +172,13 @@ class _HomeViewState extends State<HomeView> {
         }
         _isLoading = false;
       });
-
-      // setState(() {
-      //   _events = response.data ?? [];
-      //   tempEvent = response.data?.last ?? EventLoadModel();
-      //   _isLoading = false;
-      // });
     } catch (e) {
       debugPrint('Gagal load events: $e');
+      setState(() {
+        _events = [];
+        tempEvent = EventLoadModel();
+        _isLoading = false;
+      });
       _handleTokenErrorOnce(e.toString());
     }
   }
@@ -469,10 +483,28 @@ class _HomeViewState extends State<HomeView> {
 
                 try {
                   final token = await _storageService.getToken();
-                  String invitationId = await _storageService.getInvitationID();
+                  String? invitationId = await _storageService
+                      .getInvitationID();
+
+                  // Perbaikan: Check null values
+                  if (token == null) {
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close dialog
+                    _handleTokenErrorOnce('Token tidak valid');
+                    return;
+                  }
+
+                  if (invitationId == null || invitationId.isEmpty) {
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Invitation ID tidak tersedia")),
+                    );
+                    return;
+                  }
 
                   final response = await _authService.createEvent(
-                    token: token!,
+                    token: token,
                     invitationId: int.parse(invitationId),
                     name: nameController.text,
                     venueName: venueNameController.text,
@@ -485,18 +517,20 @@ class _HomeViewState extends State<HomeView> {
                   );
 
                   if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading dialog
                   }
-                  // Tutup loading dialog
 
                   if (response.status == 201) {
                     if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Close main dialog
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Acara berhasil dibuat")),
                     );
+
+                    // Reload events after successful creation
+                    _loadEvents();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Gagal membuat acara")),
@@ -504,7 +538,7 @@ class _HomeViewState extends State<HomeView> {
                   }
                 } catch (e) {
                   if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading dialog
                   }
 
                   ScaffoldMessenger.of(context).showSnackBar(

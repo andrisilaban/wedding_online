@@ -127,9 +127,14 @@ class AuthService {
       final invitations = dataList
           .map((json) => InvitationModel.fromJson(json as Map<String, dynamic>))
           .toList();
-      _storageService.saveInvitationId(
-        invitations.last.id?.toString() ?? defaultInvitationId,
-      );
+
+      // Perbaikan: Check if invitations is not empty before accessing last
+      if (invitations.isNotEmpty && invitations.last.id != null) {
+        _storageService.saveInvitationId(invitations.last.id.toString());
+      } else {
+        // Save default invitation ID if no invitations found
+        _storageService.saveInvitationId(defaultInvitationId);
+      }
 
       return ApiResponse(
         status: response.data['status'],

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class StorageService {
   static const _tokenKey = 'token';
   static const _invitationId = 'invitationID';
+  static const String _defaultInvitationId = '0'; // Default value
 
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -24,9 +25,16 @@ class StorageService {
     await prefs.setString(_invitationId, invitationID);
   }
 
-  Future<String> getInvitationID() async {
+  // Perbaikan: Mengembalikan String? dan handle null case
+  Future<String?> getInvitationID() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_invitationId)!;
+    return prefs.getString(_invitationId);
+  }
+
+  // Method tambahan untuk mendapatkan invitation ID dengan default value
+  Future<String> getInvitationIDOrDefault() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_invitationId) ?? _defaultInvitationId;
   }
 
   Future<void> clearAll() async {

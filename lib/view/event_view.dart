@@ -40,14 +40,59 @@ class _EventViewState extends State<EventView> {
         ).pushReplacementNamed('/login');
         return;
       }
-      if (!mounted) return;
-      setState(() => _isLoading = false);
 
+      // Perbaikan: Handle nullable invitation ID
       final invitationId = await _storageService.getInvitationID();
+
+      // Check if invitation ID is null or empty
+      if (invitationId == null || invitationId.isEmpty) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Invitation ID tidak tersedia. Silakan buat undangan terlebih dahulu.",
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Validate that invitation ID is a valid number
+      final parsedInvitationId = int.tryParse(invitationId);
+      if (parsedInvitationId == null) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invitation ID tidak valid."),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Validate form fields
+      if (nameController.text.isEmpty ||
+          venueNameController.text.isEmpty ||
+          dateController.text.isEmpty ||
+          startTimeController.text.isEmpty ||
+          endTimeController.text.isEmpty) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Mohon lengkapi semua field yang wajib diisi."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
 
       final response = await _authService.createEvent(
         token: token,
-        invitationId: int.parse(invitationId),
+        invitationId: parsedInvitationId,
         name: nameController.text,
         venueName: venueNameController.text,
         venueAddress: venueAddressController.text,
@@ -58,29 +103,54 @@ class _EventViewState extends State<EventView> {
         orderNumber: int.tryParse(orderNumberController.text) ?? 1,
       );
 
+      if (!mounted) return;
+
       if (response.status == 201) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Acara berhasil dibuat")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Acara berhasil dibuat"),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Clear form after successful submission
+        _clearForm();
+
         widget.onSuccess(); // trigger refresh di home_view
+
         if (Navigator.canPop(context)) {
           Navigator.pop(context);
         }
       } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Gagal membuat acara")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Gagal membuat acara"),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Terjadi kesalahan: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Terjadi kesalahan: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _clearForm() {
+    nameController.clear();
+    venueNameController.clear();
+    venueAddressController.clear();
+    dateController.clear();
+    startTimeController.clear();
+    endTimeController.clear();
+    descriptionController.clear();
+    orderNumberController.clear();
   }
 
   @override
@@ -106,25 +176,45 @@ class _EventViewState extends State<EventView> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Nama Acara'),
+              decoration: const InputDecoration(
+                labelText: 'Nama Acara *',
+                hintText: 'Contoh: Akad Nikah, Resepsi',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: venueNameController,
-              decoration: const InputDecoration(labelText: 'Tempat'),
+              decoration: const InputDecoration(
+                labelText: 'Tempat *',
+                hintText: 'Contoh: Gedung Serbaguna',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: venueAddressController,
-              decoration: const InputDecoration(labelText: 'Alamat'),
+              decoration: const InputDecoration(
+                labelText: 'Alamat',
+                hintText: 'Alamat lengkap tempat acara',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: dateController,
               readOnly: true,
-              decoration: const InputDecoration(labelText: 'Tanggal'),
+              decoration: const InputDecoration(
+                labelText: 'Tanggal *',
+                hintText: 'Pilih tanggal acara',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.calendar_today),
+              ),
               onTap: () async {
                 final selectedDate = await showDatePicker(
                   context: context,
                   initialDate: DateTime.now(),
-                  firstDate: DateTime(2020),
+                  firstDate: DateTime.now(),
                   lastDate: DateTime(2030),
                 );
                 if (selectedDate != null) {
@@ -133,10 +223,16 @@ class _EventViewState extends State<EventView> {
                 }
               },
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: startTimeController,
               readOnly: true,
-              decoration: const InputDecoration(labelText: 'Jam Mulai'),
+              decoration: const InputDecoration(
+                labelText: 'Jam Mulai *',
+                hintText: 'Pilih jam mulai',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.access_time),
+              ),
               onTap: () async {
                 final selectedTime = await showTimePicker(
                   context: context,
@@ -148,10 +244,16 @@ class _EventViewState extends State<EventView> {
                 }
               },
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: endTimeController,
               readOnly: true,
-              decoration: const InputDecoration(labelText: 'Jam Selesai'),
+              decoration: const InputDecoration(
+                labelText: 'Jam Selesai *',
+                hintText: 'Pilih jam selesai',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.access_time),
+              ),
               onTap: () async {
                 final selectedTime = await showTimePicker(
                   context: context,
@@ -163,22 +265,55 @@ class _EventViewState extends State<EventView> {
                 }
               },
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Deskripsi'),
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi',
+                hintText: 'Deskripsi singkat tentang acara',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: orderNumberController,
-              decoration: const InputDecoration(labelText: 'Urutan'),
+              decoration: const InputDecoration(
+                labelText: 'Urutan',
+                hintText: 'Urutan acara (1, 2, 3, ...)',
+                border: OutlineInputBorder(),
+              ),
               keyboardType: TextInputType.number,
             ),
-            const SizedBox(height: 20),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: _submitEvent,
-                    child: const Text("Simpan"),
-                  ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _submitEvent,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        "Simpan Acara",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "* Field wajib diisi",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
           ],
         ),
       ),
