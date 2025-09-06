@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -16,8 +14,6 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage>
     with TickerProviderStateMixin {
   File? _imageFile;
-  Uint8List? _imageBytes; // For web platform
-  String? _imageName; // Store image name for web
   bool _isUploading = false;
   bool _isLoading = false;
   List<Map<String, dynamic>> _imageData = [];
@@ -94,8 +90,7 @@ class _ProfilePageState extends State<ProfilePage>
       for (var file in uploadFiles) {
         if (file.name.toLowerCase().endsWith('.jpg') ||
             file.name.toLowerCase().endsWith('.jpeg') ||
-            file.name.toLowerCase().endsWith('.png') ||
-            file.name.toLowerCase().endsWith('.webp')) {
+            file.name.toLowerCase().endsWith('.png')) {
           String url = client.storage
               .from('momenku_images')
               .getPublicUrl('uploads/${file.name}');
@@ -193,11 +188,10 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  // Pick an image from the gallery - Updated for web support
+  // Pick an image from the gallery
   Future<void> pickImage() async {
     try {
-      // Request permission only for mobile platforms
-      if (!kIsWeb && Platform.isAndroid) {
+      if (Platform.isAndroid) {
         await requestPermission();
       }
 
@@ -210,33 +204,11 @@ class _ProfilePageState extends State<ProfilePage>
       );
 
       if (image != null) {
-        if (kIsWeb) {
-          // For web platform, read as bytes
-          final bytes = await image.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-            _imageName = image.name;
-            _imageFile = null; // Clear file for web
-          });
-        } else {
-          // For mobile platforms
-          setState(() {
-            _imageFile = File(image.path);
-            _imageBytes = null; // Clear bytes for mobile
-            _imageName = null;
-          });
-        }
-
         setState(() {
-          _debugInfo = kIsWeb
-              ? 'Image selected: $_imageName (${_formatFileSize(_imageBytes?.length ?? 0)})'
-              : 'Image selected from gallery';
+          _imageFile = File(image.path);
         });
       }
     } catch (e) {
-      setState(() {
-        _debugInfo = 'Error picking image: $e';
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error picking image: $e'),
@@ -246,19 +218,9 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  // Upload the selected image to Supabase storage - Updated for web support
+  // Upload the selected image to Supabase storage
   Future<void> uploadImage() async {
-    if (kIsWeb && _imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an image first.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (!kIsWeb && _imageFile == null) {
+    if (_imageFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select an image first.'),
@@ -279,22 +241,14 @@ class _ProfilePageState extends State<ProfilePage>
 
       print('Uploading to path: $path');
 
-      if (kIsWeb) {
-        // Upload from bytes for web
-        await Supabase.instance.client.storage
-            .from('momenku_images')
-            .uploadBinary(path, _imageBytes!);
-      } else {
-        // Upload from file for mobile
-        await Supabase.instance.client.storage
-            .from('momenku_images')
-            .upload(path, _imageFile!);
-      }
+      await Supabase.instance.client.storage
+          .from('momenku_images')
+          .upload(path, _imageFile!);
 
       print('Upload successful: $path');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Upload successful! 🎉'),
           backgroundColor: Colors.green,
         ),
@@ -306,8 +260,6 @@ class _ProfilePageState extends State<ProfilePage>
       // Clear selected image
       setState(() {
         _imageFile = null;
-        _imageBytes = null;
-        _imageName = null;
       });
     } catch (e) {
       print('Upload error: $e');
@@ -329,7 +281,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> requestPermission() async {
-    if (!kIsWeb && Platform.isAndroid) {
+    if (Platform.isAndroid) {
       if (await Permission.photos.isDenied ||
           await Permission.photos.isPermanentlyDenied) {
         await Permission.photos.request();
@@ -349,34 +301,14 @@ class _ProfilePageState extends State<ProfilePage>
     return '${size.toStringAsFixed(1)} ${suffixes[i]}';
   }
 
-  // Helper method to get image widget for display
-  Widget _buildImagePreview() {
-    if (kIsWeb && _imageBytes != null) {
-      return Image.memory(
-        _imageBytes!,
-        width: 120,
-        height: 120,
-        fit: BoxFit.cover,
-      );
-    } else if (!kIsWeb && _imageFile != null) {
-      return Image.file(
-        _imageFile!,
-        width: 120,
-        height: 120,
-        fit: BoxFit.cover,
-      );
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(
-          kIsWeb ? "My Profile Gallery (Web)" : "My Profile Gallery",
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: const Text(
+          "My Profile Gallery",
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
@@ -398,47 +330,6 @@ class _ProfilePageState extends State<ProfilePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Platform indicator
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: kIsWeb ? Colors.blue.shade50 : Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: kIsWeb
-                          ? Colors.blue.shade200
-                          : Colors.green.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        kIsWeb ? Icons.web : Icons.phone_android,
-                        color: kIsWeb
-                            ? Colors.blue.shade700
-                            : Colors.green.shade700,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        kIsWeb
-                            ? 'Running on Web Platform'
-                            : 'Running on Mobile Platform',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: kIsWeb
-                              ? Colors.blue.shade700
-                              : Colors.green.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
                 // Status Card
                 Container(
                   width: double.infinity,
@@ -532,15 +423,16 @@ class _ProfilePageState extends State<ProfilePage>
                           child: CircleAvatar(
                             radius: 57,
                             backgroundColor: Colors.grey.shade100,
-                            child: ClipOval(
-                              child:
-                                  _buildImagePreview() ??
-                                  Icon(
+                            backgroundImage: _imageFile != null
+                                ? FileImage(_imageFile!)
+                                : null,
+                            child: _imageFile == null
+                                ? Icon(
                                     Icons.add_a_photo,
                                     size: 40,
                                     color: Colors.indigo.shade300,
-                                  ),
-                            ),
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -573,11 +465,7 @@ class _ProfilePageState extends State<ProfilePage>
 
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed:
-                                  _isUploading ||
-                                      (kIsWeb
-                                          ? _imageBytes == null
-                                          : _imageFile == null)
+                              onPressed: _isUploading || _imageFile == null
                                   ? null
                                   : uploadImage,
                               icon: _isUploading
