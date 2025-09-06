@@ -350,7 +350,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   // Helper method to get image widget for display
-  Widget _buildImagePreview() {
+  Image? _buildImagePreview() {
     if (kIsWeb && _imageBytes != null) {
       return Image.memory(
         _imageBytes!,
