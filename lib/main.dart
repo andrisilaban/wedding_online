@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/home_view.dart';
@@ -8,6 +9,12 @@ import 'package:wedding_online/view/login_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: 'https://mcyoxonpexcgtqmwqawr.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jeW94b25wZXhjZ3RxbXdxYXdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkyNDQxNDUsImV4cCI6MjA1NDgyMDE0NX0.dDRiKM77DIvuWVBrUP5zQimpF0qjCbnLKjs4_Qk9JqI',
+  );
+
   await initializeDateFormatting('id_ID', null);
   final token = await StorageService().getToken();
   runApp(MyApp(initialRoute: token != null ? '/home' : '/login'));

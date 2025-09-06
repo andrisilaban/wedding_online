@@ -12,6 +12,7 @@ import 'package:wedding_online/view/event_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
+import 'package:wedding_online/view/profil_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -774,6 +775,16 @@ class _HomeViewState extends State<HomeView> {
                       //   ],
                       // ),
                       _buildLogoutButton(),
+
+                      sw10,
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => ProfilePage(),
+                          ),
+                        ),
+                        child: Text('Profil'),
+                      ),
                       sh16,
                       // ElevatedButton(
                       //   onPressed: () {
