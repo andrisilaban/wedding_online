@@ -130,6 +130,131 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  // Replace image function
+  Future<void> _replaceImage(int index) async {
+    final imageInfo = _imageData[index];
+
+    // Show confirmation dialog
+    bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Replace Image'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Do you want to replace "${imageInfo['name']}" with a new image?',
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'The old image will be permanently deleted and replaced with the new one.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: const Text('Replace'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      // Pick new image
+      await _pickImageForReplace();
+
+      if ((kIsWeb && _imageBytes == null) || (!kIsWeb && _imageFile == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No image selected for replacement.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _debugInfo = 'Replacing ${imageInfo['name']}...';
+        _isUploading = true;
+      });
+
+      final client = Supabase.instance.client;
+
+      // Generate new filename with timestamp to avoid caching issues
+      final newFileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final newPath = 'uploads/$newFileName';
+
+      // Upload new image first
+      if (kIsWeb) {
+        await client.storage
+            .from('momenku_images')
+            .uploadBinary(newPath, _imageBytes!);
+      } else {
+        await client.storage
+            .from('momenku_images')
+            .upload(newPath, _imageFile!);
+      }
+
+      // Delete old image
+      await client.storage.from('momenku_images').remove([imageInfo['path']]);
+
+      // Update local data
+      setState(() {
+        _imageData[index] = {
+          'name': newFileName,
+          'url': client.storage.from('momenku_images').getPublicUrl(newPath),
+          'path': newPath,
+          'size': kIsWeb ? _imageBytes!.length : _imageFile!.lengthSync(),
+          'lastModified': DateTime.now().toIso8601String(),
+        };
+        _debugInfo =
+            'Successfully replaced ${imageInfo['name']} with $newFileName';
+      });
+
+      // Clear selected image
+      setState(() {
+        _imageFile = null;
+        _imageBytes = null;
+        _imageName = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Image replaced successfully! 🔄'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('🔥 REPLACE ERROR: $e');
+      setState(() {
+        _debugInfo = 'Error replacing image: $e';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to replace image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
   // Delete image function
   Future<void> _deleteImage(String path, String name, int index) async {
     // Show confirmation dialog
@@ -187,6 +312,53 @@ class _ProfilePageState extends State<ProfilePage>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to delete $name: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Pick image for replacement
+  Future<void> _pickImageForReplace() async {
+    try {
+      // Request permission only for mobile platforms
+      if (!kIsWeb && Platform.isAndroid) {
+        await requestPermission();
+      }
+
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        if (kIsWeb) {
+          // For web platform, read as bytes
+          final bytes = await image.readAsBytes();
+          setState(() {
+            _imageBytes = bytes;
+            _imageName = image.name;
+            _imageFile = null; // Clear file for web
+          });
+        } else {
+          // For mobile platforms
+          setState(() {
+            _imageFile = File(image.path);
+            _imageBytes = null; // Clear bytes for mobile
+            _imageName = null;
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _debugInfo = 'Error picking replacement image: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking replacement image: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -703,9 +875,11 @@ class _ProfilePageState extends State<ProfilePage>
                                 crossAxisCount: 2,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
-                                childAspectRatio: 0.8,
+                                childAspectRatio: 0.75,
                               ),
                           itemCount: _imageData.length,
+
+                          // Replace your existing GridView.builder itemBuilder section with this:
                           itemBuilder: (context, index) {
                             final imageInfo = _imageData[index];
                             return Hero(
@@ -725,65 +899,65 @@ class _ProfilePageState extends State<ProfilePage>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Image
-                                    Expanded(
-                                      child: Container(
-                                        width: double.infinity,
-                                        decoration: const BoxDecoration(
-                                          borderRadius: BorderRadius.only(
-                                            topLeft: Radius.circular(12),
-                                            topRight: Radius.circular(12),
-                                          ),
+                                    // Image - Fixed height instead of Expanded
+                                    Container(
+                                      width: double.infinity,
+                                      height:
+                                          120, // Fixed height to prevent overflow
+                                      decoration: const BoxDecoration(
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          topRight: Radius.circular(12),
                                         ),
-                                        child: ClipRRect(
-                                          borderRadius: const BorderRadius.only(
-                                            topLeft: Radius.circular(12),
-                                            topRight: Radius.circular(12),
-                                          ),
-                                          child: Image.network(
-                                            imageInfo['url'],
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) {
-                                                  return Container(
-                                                    color: Colors.grey.shade100,
-                                                    child: Icon(
-                                                      Icons.broken_image,
-                                                      size: 40,
-                                                      color:
-                                                          Colors.grey.shade400,
-                                                    ),
-                                                  );
-                                                },
-                                            loadingBuilder:
-                                                (
-                                                  context,
-                                                  child,
-                                                  loadingProgress,
-                                                ) {
-                                                  if (loadingProgress == null)
-                                                    return child;
-                                                  return Container(
-                                                    color: Colors.grey.shade50,
-                                                    child: const Center(
-                                                      child:
-                                                          CircularProgressIndicator(),
-                                                    ),
-                                                  );
-                                                },
-                                          ),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          topRight: Radius.circular(12),
+                                        ),
+                                        child: Image.network(
+                                          imageInfo['url'],
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Container(
+                                                  color: Colors.grey.shade100,
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    size: 40,
+                                                    color: Colors.grey.shade400,
+                                                  ),
+                                                );
+                                              },
+                                          loadingBuilder:
+                                              (
+                                                context,
+                                                child,
+                                                loadingProgress,
+                                              ) {
+                                                if (loadingProgress == null)
+                                                  return child;
+                                                return Container(
+                                                  color: Colors.grey.shade50,
+                                                  child: const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  ),
+                                                );
+                                              },
                                         ),
                                       ),
                                     ),
 
-                                    // Info Section
-                                    Expanded(
-                                      flex: 2,
+                                    // Info Section - Flexible instead of Expanded
+                                    Flexible(
                                       child: Padding(
                                         padding: const EdgeInsets.all(8),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize
+                                              .min, // Important: minimize space
                                           children: [
                                             Text(
                                               'Image ${index + 1}',
@@ -794,7 +968,9 @@ class _ProfilePageState extends State<ProfilePage>
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(
+                                              height: 2,
+                                            ), // Reduced spacing
                                             Text(
                                               _formatFileSize(
                                                 imageInfo['size'],
@@ -804,15 +980,16 @@ class _ProfilePageState extends State<ProfilePage>
                                                 color: Colors.grey.shade600,
                                               ),
                                             ),
-                                            const Spacer(),
-
-                                            // Action Buttons
+                                            const SizedBox(
+                                              height: 4,
+                                            ), // Reduced spacing
+                                            // Single row with all buttons to save space
                                             Row(
                                               children: [
+                                                // View Button
                                                 Expanded(
-                                                  child: TextButton.icon(
+                                                  child: TextButton(
                                                     onPressed: () {
-                                                      // View image in full screen
                                                       Navigator.push(
                                                         context,
                                                         MaterialPageRoute(
@@ -826,42 +1003,82 @@ class _ProfilePageState extends State<ProfilePage>
                                                         ),
                                                       );
                                                     },
-                                                    icon: const Icon(
-                                                      Icons.visibility,
-                                                      size: 16,
-                                                    ),
-                                                    label: const Text(
-                                                      'View',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
                                                     style: TextButton.styleFrom(
                                                       foregroundColor:
                                                           Colors.indigo,
                                                       padding:
                                                           const EdgeInsets.symmetric(
-                                                            horizontal: 8,
+                                                            horizontal: 2,
+                                                            vertical: 4,
                                                           ),
+                                                      minimumSize: Size
+                                                          .zero, // Remove minimum size
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.visibility,
+                                                      size: 16,
                                                     ),
                                                   ),
                                                 ),
 
-                                                IconButton(
-                                                  onPressed: () => _deleteImage(
-                                                    imageInfo['path'],
-                                                    imageInfo['name'],
-                                                    index,
+                                                // Replace Button
+                                                Expanded(
+                                                  child: TextButton(
+                                                    onPressed: _isUploading
+                                                        ? null
+                                                        : () => _replaceImage(
+                                                            index,
+                                                          ),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor: Colors
+                                                          .orange
+                                                          .shade600,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 2,
+                                                            vertical: 4,
+                                                          ),
+                                                      minimumSize: Size.zero,
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.swap_horiz,
+                                                      size: 16,
+                                                    ),
                                                   ),
-                                                  icon: const Icon(
-                                                    Icons.delete_outline,
-                                                  ),
-                                                  color: Colors.red.shade400,
-                                                  iconSize: 20,
-                                                  constraints:
-                                                      const BoxConstraints(),
-                                                  padding: const EdgeInsets.all(
-                                                    4,
+                                                ),
+
+                                                // Delete Button
+                                                Expanded(
+                                                  child: TextButton(
+                                                    onPressed: () =>
+                                                        _deleteImage(
+                                                          imageInfo['path'],
+                                                          imageInfo['name'],
+                                                          index,
+                                                        ),
+                                                    style: TextButton.styleFrom(
+                                                      foregroundColor:
+                                                          Colors.red.shade600,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 2,
+                                                            vertical: 4,
+                                                          ),
+                                                      minimumSize: Size.zero,
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 16,
+                                                    ),
                                                   ),
                                                 ),
                                               ],
