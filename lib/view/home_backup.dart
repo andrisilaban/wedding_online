@@ -1,12 +1,6 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:confetti/confetti.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/models/event_load_model.dart';
@@ -33,13 +27,6 @@ class _HomeViewState extends State<HomeView> {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   late Future<List<InvitationModel>> _invitationsFuture;
-
-  // Image management variables
-  File? _imageFile;
-  Uint8List? _imageBytes;
-  String? _imageName;
-  bool _isUploading = false;
-  List<Map<String, dynamic>> _imageData = [];
 
   List<EventLoadModel> _events = [];
   bool _isLoading = true;
@@ -91,408 +78,6 @@ class _HomeViewState extends State<HomeView> {
       'attendance': 'Hadir',
     },
   ];
-
-  // Image management methods
-  Future<void> _loadImages() async {
-    print('🔥 LOAD IMAGES STARTED');
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final client = Supabase.instance.client;
-
-      print('🔥 Listing uploads folder...');
-      final uploadFiles = await client.storage
-          .from('momenku_images')
-          .list(path: 'uploads');
-
-      print('🔥 Upload files: ${uploadFiles.length}');
-
-      List<Map<String, dynamic>> imageData = [];
-      for (var file in uploadFiles) {
-        if (file.name.toLowerCase().endsWith('.jpg') ||
-            file.name.toLowerCase().endsWith('.jpeg') ||
-            file.name.toLowerCase().endsWith('.png') ||
-            file.name.toLowerCase().endsWith('.webp')) {
-          String url = client.storage
-              .from('momenku_images')
-              .getPublicUrl('uploads/${file.name}');
-
-          imageData.add({
-            'name': file.name,
-            'url': url,
-            'path': 'uploads/${file.name}',
-            'size': file.metadata?['size'] ?? 0,
-            'lastModified': file.metadata?['lastModified'] ?? 'Unknown',
-          });
-
-          print('🔥 Added image: ${file.name}');
-        }
-      }
-
-      // Sort by name (newest first based on timestamp naming)
-      imageData.sort((a, b) => b['name'].compareTo(a['name']));
-
-      setState(() {
-        _imageData = imageData;
-        _isLoading = false;
-      });
-    } catch (e, stackTrace) {
-      print('🔥 LOAD ERROR: $e');
-      print('🔥 STACK TRACE: $stackTrace');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _pickImageForReplace() async {
-    try {
-      if (!kIsWeb && Platform.isAndroid) {
-        await requestPermission();
-      }
-
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1080,
-        maxHeight: 1080,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        if (kIsWeb) {
-          final bytes = await image.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-            _imageName = image.name;
-            _imageFile = null;
-          });
-        } else {
-          setState(() {
-            _imageFile = File(image.path);
-            _imageBytes = null;
-            _imageName = null;
-          });
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking replacement image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _replaceImage(int index) async {
-    final imageInfo = _imageData[index];
-
-    bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Replace Image'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Do you want to replace "${imageInfo['name']}" with a new image?',
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'The old image will be permanently deleted and replaced with the new one.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.orange),
-              child: const Text('Replace'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await _pickImageForReplace();
-
-      if ((kIsWeb && _imageBytes == null) || (!kIsWeb && _imageFile == null)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No image selected for replacement.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-
-      setState(() {
-        _isUploading = true;
-      });
-
-      final client = Supabase.instance.client;
-      final newFileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final newPath = 'uploads/$newFileName';
-
-      if (kIsWeb) {
-        await client.storage
-            .from('momenku_images')
-            .uploadBinary(newPath, _imageBytes!);
-      } else {
-        await client.storage
-            .from('momenku_images')
-            .upload(newPath, _imageFile!);
-      }
-
-      await client.storage.from('momenku_images').remove([imageInfo['path']]);
-
-      setState(() {
-        _imageData[index] = {
-          'name': newFileName,
-          'url': client.storage.from('momenku_images').getPublicUrl(newPath),
-          'path': newPath,
-          'size': kIsWeb ? _imageBytes!.length : _imageFile!.lengthSync(),
-          'lastModified': DateTime.now().toIso8601String(),
-        };
-      });
-
-      setState(() {
-        _imageFile = null;
-        _imageBytes = null;
-        _imageName = null;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Image replaced successfully! 🔄'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('🔥 REPLACE ERROR: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to replace image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isUploading = false;
-      });
-    }
-  }
-
-  Future<void> _deleteImage(String path, String name, int index) async {
-    bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Image'),
-          content: Text('Are you sure you want to delete "$name"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await Supabase.instance.client.storage.from('momenku_images').remove([
-        path,
-      ]);
-
-      setState(() {
-        _imageData.removeAt(index);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Successfully deleted $name'),
-          backgroundColor: Colors.green,
-          action: SnackBarAction(label: 'Refresh', onPressed: _loadImages),
-        ),
-      );
-    } catch (e) {
-      print('🔥 DELETE ERROR: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete $name: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> pickImage() async {
-    try {
-      if (!kIsWeb && Platform.isAndroid) {
-        await requestPermission();
-      }
-
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1080,
-        maxHeight: 1080,
-        imageQuality: 80,
-      );
-
-      if (image != null) {
-        if (kIsWeb) {
-          final bytes = await image.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-            _imageName = image.name;
-            _imageFile = null;
-          });
-        } else {
-          setState(() {
-            _imageFile = File(image.path);
-            _imageBytes = null;
-            _imageName = null;
-          });
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> uploadImage() async {
-    if (kIsWeb && _imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an image first.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    if (!kIsWeb && _imageFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an image first.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isUploading = true;
-    });
-
-    try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final path = 'uploads/$fileName';
-
-      print('Uploading to path: $path');
-
-      if (kIsWeb) {
-        await Supabase.instance.client.storage
-            .from('momenku_images')
-            .uploadBinary(path, _imageBytes!);
-      } else {
-        await Supabase.instance.client.storage
-            .from('momenku_images')
-            .upload(path, _imageFile!);
-      }
-
-      print('Upload successful: $path');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Upload successful! 🎉'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      await _loadImages();
-
-      setState(() {
-        _imageFile = null;
-        _imageBytes = null;
-        _imageName = null;
-      });
-    } catch (e) {
-      print('Upload error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error uploading image: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isUploading = false;
-      });
-    }
-  }
-
-  Future<void> requestPermission() async {
-    if (!kIsWeb && Platform.isAndroid) {
-      if (await Permission.photos.isDenied ||
-          await Permission.photos.isPermanentlyDenied) {
-        await Permission.photos.request();
-      }
-    }
-  }
-
-  String _formatFileSize(int bytes) {
-    if (bytes == 0) return '0 B';
-    const suffixes = ['B', 'KB', 'MB', 'GB'];
-    var i = 0;
-    double size = bytes.toDouble();
-    while (size >= 1024 && i < suffixes.length - 1) {
-      size /= 1024;
-      i++;
-    }
-    return '${size.toStringAsFixed(1)} ${suffixes[i]}';
-  }
-
-  // Get image URL from uploaded images or fallback to assets
-  String _getImageUrl(String assetPath, int index) {
-    if (_imageData.isNotEmpty && index < _imageData.length) {
-      return _imageData[index]['url'];
-    }
-    return assetPath; // fallback to asset
-  }
-
-  // Check if image is from Supabase
-  bool _isSupabaseImage(String path, int index) {
-    return _imageData.isNotEmpty && index < _imageData.length;
-  }
-
   Future<List<InvitationModel>> _loadInvitations() async {
     final token = await _storageService.getToken();
 
@@ -505,9 +90,14 @@ class _HomeViewState extends State<HomeView> {
 
     if (list.isNotEmpty && list.last.id != null) {
       _loadEvents();
-      _loadImages(); // Load images when invitations are loaded
     }
     return list;
+
+    // final response = await _authService.getInvitations(token);
+    // if (response.data?.last.id != null) {
+    //   _loadEvents();
+    // }
+    // return response.data ?? [];
   }
 
   void _refreshInvitations() {
@@ -522,6 +112,7 @@ class _HomeViewState extends State<HomeView> {
     _hasRedirected = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Tampilkan snackbar sebelum redirect
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -532,7 +123,9 @@ class _HomeViewState extends State<HomeView> {
         );
       }
 
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(
+        const Duration(seconds: 2),
+      ); // beri waktu tampil snackbar
       await _storageService.clearAll();
 
       if (!mounted) return;
@@ -543,6 +136,8 @@ class _HomeViewState extends State<HomeView> {
   void _loadEvents() async {
     try {
       final token = await _storageService.getToken();
+
+      // Perbaikan: Handle null invitation ID
       String? invitationId = await _storageService.getInvitationID();
 
       debugPrint('------');
@@ -553,6 +148,7 @@ class _HomeViewState extends State<HomeView> {
         return;
       }
 
+      // Perbaikan: Check if invitationId is null atau empty
       if (invitationId == null || invitationId.isEmpty || invitationId == '0') {
         debugPrint('Invitation ID tidak tersedia, skip load events');
         setState(() {
@@ -623,17 +219,47 @@ class _HomeViewState extends State<HomeView> {
                 height: 450,
                 child: TabBarView(
                   children: [
+                    // 🟢 Tab 1 → langsung tampil form undangan
                     InvitationView(onSuccess: _refreshInvitations),
+
+                    // 🟢 Tab 2 → Acara
                     EventView(onSuccess: _refreshInvitations),
+
+                    // Center(
+                    //   child: ElevatedButton(
+                    //     onPressed: () {
+                    //       // aksi tambah acara
+                    //     },
+                    //     child: const Text("Tambah Acara"),
+                    //   ),
+                    // ),
+
+                    // 🟢 Tab 3 → Event
                     Center(
                       child: ElevatedButton(
                         onPressed: () {
+                          // aksi load event
                           _loadEvents();
                         },
                         child: const Text("Load Event"),
                       ),
                     ),
+
+                    // 🟢 Tab 4 → Logout
                     Center(child: _buildLogoutButton()),
+                    // Center(
+                    //   child: ElevatedButton(
+                    //     onPressed: () {
+                    //       Navigator.pop(context);
+                    //       _buildLogoutButton();
+                    //       // aksi logout
+                    //     },
+                    //     style: ElevatedButton.styleFrom(
+                    //       backgroundColor: Colors.red,
+                    //     ),
+                    //     child: const Text("Logout"),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -845,6 +471,7 @@ class _HomeViewState extends State<HomeView> {
           actions: [
             TextButton(
               onPressed: () async {
+                // Tampilkan loading
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -860,16 +487,17 @@ class _HomeViewState extends State<HomeView> {
                   String? invitationId = await _storageService
                       .getInvitationID();
 
+                  // Perbaikan: Check null values
                   if (token == null) {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close dialog
                     _handleTokenErrorOnce('Token tidak valid');
                     return;
                   }
 
                   if (invitationId == null || invitationId.isEmpty) {
-                    Navigator.pop(context);
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close dialog
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Invitation ID tidak tersedia")),
                     );
@@ -890,21 +518,19 @@ class _HomeViewState extends State<HomeView> {
                   );
 
                   if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading dialog
                   }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Terjadi kesalahan: ")),
-                  );
                   if (response.status == 201) {
                     if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
+                      Navigator.pop(context); // Close main dialog
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Acara berhasil dibuat")),
                     );
 
+                    // Reload events after successful creation
                     _loadEvents();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -913,8 +539,12 @@ class _HomeViewState extends State<HomeView> {
                   }
                 } catch (e) {
                   if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
+                    Navigator.pop(context); // Close loading dialog
                   }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Terjadi kesalahan: $e")),
+                  );
                 }
               },
               child: const Text('Simpan'),
@@ -939,6 +569,8 @@ class _HomeViewState extends State<HomeView> {
 
     _invitationsFuture = _loadInvitations();
     _loadEvents();
+
+    // _calculateAttendingCount();
   }
 
   @override
@@ -1014,8 +646,16 @@ class _HomeViewState extends State<HomeView> {
           }
 
           if (snapshot.hasError) {
-            _handleTokenErrorOnce(snapshot.error.toString());
+            _handleTokenErrorOnce(
+              snapshot.error.toString(),
+            ); // 🟢 Panggil fungsi khusus
           }
+
+          // if (snapshot.hasError) {
+          //   return Center(
+          //     child: Text('Terjadi kesalahan bro: ${snapshot.error}'),
+          //   );
+          // }
 
           final invitations = snapshot.data ?? [];
 
@@ -1036,7 +676,59 @@ class _HomeViewState extends State<HomeView> {
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [sh32],
+                  children: [
+                    sh32,
+                    // Row(
+                    //   children: [
+                    //     _buildLogoutButton(),
+                    //     ElevatedButton(
+                    //       onPressed: () {
+                    //         showCreateInvitationPopup(
+                    //           context,
+                    //         ); // Ganti `token` sesuai yang kamu simpan
+                    //       },
+                    //       child: Text("Buat Undangan"),
+                    //     ),
+                    //     sw10,
+                    //     ElevatedButton(
+                    //       onPressed: _showAddEventPopup,
+                    //       child: Text("Tambah Acara"),
+                    //     ),
+                    //   ],
+                    // ),
+                    // _buildLogoutButton(),
+                    // sh16,
+                    // _buildWeddingInfoCard(groomBrideTitle),
+                    // sh32,
+                    // _buildPresentationCard(),
+                    // sh32,
+                    // _buildDateSection(tempEvent),
+                    // sh32,
+                    // _buildCoupleSection(
+                    //   groomFullName: groomFullName,
+                    //   brideFullName: brideFullName,
+                    //   groomFatherName: groomFatherName,
+                    //   groomMotherName: groomMotherName,
+                    //   brideFatherName: brideFatherName,
+                    //   brideMotherName: brideMotherName,
+                    // ),
+                    // sh32,
+                    // _buildEventSchedule(defaultEvent: defaultEvent),
+                    // sh32,
+                    // _buildGallerySection(),
+                    // sh32,
+                    // _buildLiveStreamSection(),
+                    // sh32,
+                    // _buildAttendanceSection(),
+                    // sh32,
+                    // _buildCommentsSection(),
+                    // sh32,
+                    // _buildGiftSection(),
+                    // sh32,
+                    // _buildThankYouSection(),
+                    // const SizedBox(height: 40),
+                    // _buildMomenkuSection(),
+                  ],
                 ),
               ),
             );
@@ -1062,19 +754,44 @@ class _HomeViewState extends State<HomeView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // sh32,
+                      sh32,
+
+                      // Row(
+                      //   children: [
+                      //     _buildLogoutButton(),
+                      //     ElevatedButton(
+                      //       onPressed: () {
+                      //         showCreateInvitationPopup(
+                      //           context,
+                      //         ); // Ganti `token` sesuai yang kamu simpan
+                      //       },
+                      //       child: Text("Buat Undangan"),
+                      //     ),
+                      //     sw10,
+                      //     ElevatedButton(
+                      //       onPressed: _showAddEventPopup,
+                      //       child: Text("Tambah Acara"),
+                      //     ),
+                      //   ],
+                      // ),
                       _buildLogoutButton(),
 
-                      // sw10,
+                      sw10,
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => ProfilePage(),
+                          ),
+                        ),
+                        child: Text('Profil'),
+                      ),
+                      sh16,
                       // ElevatedButton(
-                      //   onPressed: () => Navigator.of(context).push(
-                      //     MaterialPageRoute(
-                      //       builder: (context) => ProfilePage(),
-                      //     ),
-                      //   ),
-                      //   child: Text('Profil'),
+                      //   onPressed: () {
+                      //     _loadEvents();
+                      //   },
+                      //   child: Text("Load Event"),
                       // ),
-                      // sh16,
                       sh16,
                       _buildWeddingInfoCard(invitation.title),
                       sh32,
@@ -1172,43 +889,23 @@ class _HomeViewState extends State<HomeView> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                GestureDetector(
-                  onTap: () => _showImageOptions(0, 'couple.jpg'),
-                  onLongPress: () =>
-                      _showImageManagementDialog(0, 'couple.jpg'),
-                  child: Container(
-                    decoration: circleImageDecoration.copyWith(
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.purple.withOpacity(0.4),
-                          spreadRadius: 2,
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: _isSupabaseImage('assets/images/couple.jpg', 0)
-                          ? Image.network(
-                              _getImageUrl('assets/images/couple.jpg', 0),
-                              width: 180,
-                              height: 180,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/couple.jpg',
-                                  width: 180,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              'assets/images/couple.jpg',
-                              width: 180,
-                              height: 180,
-                              fit: BoxFit.cover,
-                            ),
+                Container(
+                  decoration: circleImageDecoration.copyWith(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.purple.withOpacity(0.4),
+                        spreadRadius: 2,
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/couple.jpg',
+                      width: 180,
+                      height: 180,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
@@ -1259,94 +956,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  // Show image options dialog
-  void _showImageOptions(int index, String imageName) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Manage Image',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: Icon(Icons.photo_camera, color: Colors.blue),
-                title: Text('Upload New Image'),
-                onTap: () {
-                  Navigator.pop(context);
-                  pickImage().then((_) {
-                    if (_imageFile != null || _imageBytes != null) {
-                      uploadImage();
-                    }
-                  });
-                },
-              ),
-              if (_imageData.isNotEmpty && index < _imageData.length) ...[
-                ListTile(
-                  leading: Icon(Icons.swap_horiz, color: Colors.orange),
-                  title: Text('Replace Image'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _replaceImage(index);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.delete, color: Colors.red),
-                  title: Text('Delete Image'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    if (_imageData.isNotEmpty && index < _imageData.length) {
-                      _deleteImage(
-                        _imageData[index]['path'],
-                        _imageData[index]['name'],
-                        index,
-                      );
-                    }
-                  },
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Show image management dialog for long press
-  void _showImageManagementDialog(int index, String imageName) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Image Management'),
-          content: Text('Long press detected on $imageName'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Close'),
-            ),
-            if (_imageData.isNotEmpty && index < _imageData.length)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _replaceImage(index);
-                },
-                child: Text('Replace'),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildPresentationCard() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 24),
@@ -1375,8 +984,10 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildDateSection(EventLoadModel tempEvent) {
     DateTime parsedDate =
-        DateTime.tryParse(tempEvent.date ?? '') ?? DateTime(2025, 1, 1);
+        DateTime.tryParse(tempEvent.date ?? '') ??
+        DateTime(2025, 1, 1); // default kalau null/invalid
 
+    // Format: Rabu, 18 Juni 2025
     String formattedDate = DateFormat(
       'EEEE, d MMMM y',
       'id_ID',
@@ -1406,6 +1017,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           CountdownTimer(eventDate: tempEvent.date),
+          // CountdownTimer(eventDate: tempEvent.date),
           const SizedBox(height: 20),
           Text(
             formattedDate ?? "Rabu, 18 Juni 2025",
@@ -1488,33 +1100,14 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           const SizedBox(height: 24),
-          GestureDetector(
-            onTap: () => _showImageOptions(1, 'groom.jpeg'),
-            onLongPress: () => _showImageManagementDialog(1, 'groom.jpeg'),
-            child: Container(
-              decoration: circleImageDecoration,
-              child: ClipOval(
-                child: _isSupabaseImage('assets/images/gallery1.jpeg', 1)
-                    ? Image.network(
-                        _getImageUrl('assets/images/gallery1.jpeg', 1),
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/images/gallery1.jpeg',
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        'assets/images/gallery1.jpeg',
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.cover,
-                      ),
+          Container(
+            decoration: circleImageDecoration,
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/gallery1.jpeg',
+                width: 140,
+                height: 140,
+                fit: BoxFit.cover,
               ),
             ),
           ),
@@ -1537,33 +1130,14 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 24),
           Icon(Icons.favorite, color: Colors.purple.shade300, size: 32),
           const SizedBox(height: 24),
-          GestureDetector(
-            onTap: () => _showImageOptions(2, 'bride.jpeg'),
-            onLongPress: () => _showImageManagementDialog(2, 'bride.jpeg'),
-            child: Container(
-              decoration: circleImageDecoration,
-              child: ClipOval(
-                child: _isSupabaseImage('assets/images/gallery1.jpeg', 2)
-                    ? Image.network(
-                        _getImageUrl('assets/images/gallery1.jpeg', 2),
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
-                            'assets/images/gallery1.jpeg',
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.cover,
-                          );
-                        },
-                      )
-                    : Image.asset(
-                        'assets/images/gallery1.jpeg',
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.cover,
-                      ),
+          Container(
+            decoration: circleImageDecoration,
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/gallery1.jpeg',
+                width: 140,
+                height: 140,
+                fit: BoxFit.cover,
               ),
             ),
           ),
@@ -1685,42 +1259,23 @@ class _HomeViewState extends State<HomeView> {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                children: galleryImages.asMap().entries.map((entry) {
-                  int index =
-                      entry.key + 3; // Start from index 3 for gallery images
-                  String image = entry.value;
-                  return GestureDetector(
-                    onTap: () =>
-                        _showImageOptions(index, 'gallery${entry.key}.jpeg'),
-                    onLongPress: () => _showImageManagementDialog(
-                      index,
-                      'gallery${entry.key}.jpeg',
+                children: galleryImages.map((image) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.withOpacity(0.2),
+                          spreadRadius: 2,
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.purple.withOpacity(0.2),
-                            spreadRadius: 2,
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _isSupabaseImage(image, index)
-                            ? Image.network(
-                                _getImageUrl(image, index),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(image, fit: BoxFit.cover);
-                                },
-                              )
-                            : Image.asset(image, fit: BoxFit.cover),
-                      ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(image, fit: BoxFit.cover),
                     ),
                   );
                 }).toList(),
@@ -2181,37 +1736,14 @@ class _HomeViewState extends State<HomeView> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                GestureDetector(
-                  onTap: () => _showImageOptions(
-                    7,
-                    'thank_you.jpeg',
-                  ), // Index 7 for thank you image
-                  onLongPress: () =>
-                      _showImageManagementDialog(7, 'thank_you.jpeg'),
-                  child: Container(
-                    decoration: circleImageDecoration,
-                    child: ClipOval(
-                      child: _isSupabaseImage('assets/images/gallery3.jpeg', 7)
-                          ? Image.network(
-                              _getImageUrl('assets/images/gallery3.jpeg', 7),
-                              width: 180,
-                              height: 180,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/gallery3.jpeg',
-                                  width: 180,
-                                  height: 180,
-                                  fit: BoxFit.cover,
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              'assets/images/gallery3.jpeg',
-                              width: 180,
-                              height: 180,
-                              fit: BoxFit.cover,
-                            ),
+                Container(
+                  decoration: circleImageDecoration,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/gallery3.jpeg',
+                      width: 180,
+                      height: 180,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
