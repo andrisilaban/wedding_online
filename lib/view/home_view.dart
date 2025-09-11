@@ -993,7 +993,8 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Home"),
+        // title: const Text("Home"),
+        backgroundColor: Colors.purple.shade700,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -1036,7 +1037,39 @@ class _HomeViewState extends State<HomeView> {
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [sh32],
+                  children: [
+                    sh16,
+                    _buildWeddingInfoCard(groomBrideTitle),
+                    sh32,
+                    _buildPresentationCard(),
+                    sh32,
+                    _buildDateSection(tempEvent),
+                    sh32,
+                    _buildCoupleSection(
+                      groomFullName: groomFullName,
+                      brideFullName: brideFullName,
+                      groomFatherName: groomFatherName,
+                      groomMotherName: groomMotherName,
+                      brideFatherName: brideFatherName,
+                      brideMotherName: brideMotherName,
+                    ),
+                    sh32,
+                    _buildEventSchedule(defaultEvent: defaultEvent),
+                    sh32,
+                    _buildGallerySection(),
+                    sh32,
+                    _buildLiveStreamSection(),
+                    sh32,
+                    _buildAttendanceSection(),
+                    sh32,
+                    _buildCommentsSection(),
+                    sh32,
+                    _buildGiftSection(),
+                    sh32,
+                    _buildThankYouSection(),
+                    const SizedBox(height: 40),
+                    _buildMomenkuSection(),
+                  ],
                 ),
               ),
             );

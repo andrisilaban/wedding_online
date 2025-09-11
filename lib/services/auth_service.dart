@@ -8,7 +8,6 @@ import 'package:wedding_online/models/login_model.dart';
 import 'package:wedding_online/services/storage_service.dart';
 
 class AuthService {
-  static const _key = 'token';
   String defaultInvitationId = '999999999';
   final Dio _dio = Dio(
     BaseOptions(
@@ -28,8 +27,15 @@ class AuthService {
         '/login',
         data: {'email': email, 'password': password},
       );
-      debugPrint('-----');
-      debugPrint(response.data.toString());
+      // debugPrint('-----');
+      // debugPrint(response.data.toString());
+      final Map<String, dynamic> data = response.data;
+      final token = data['token'];
+      if (token != null) {
+        await StorageService().saveToken(token);
+      } else {
+        throw Exception('Token tidak ditemukan, silakan login ulang');
+      }
       return ApiResponse.fromJson(
         response.data,
         fromJsonData: (json) => LoginModel.fromJson(json),

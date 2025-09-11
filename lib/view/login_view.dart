@@ -30,14 +30,10 @@ class _LoginViewState extends State<LoginView> {
           _passwordController.text,
         );
         setState(() => _isLoading = false);
-        final token = response.data?.token;
-        if (token != null) {
-          await StorageService().saveToken(token);
-        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Login Berhasil: ${response.data?.user?.name ?? 'Pengguna'}',
+              'Login Berhasil: ${response.data?.user?.name ?? 'Anda Berhasil Login'}',
             ),
           ),
         );
