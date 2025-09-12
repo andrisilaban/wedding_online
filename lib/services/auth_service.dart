@@ -265,6 +265,8 @@ class AuthService {
     }
   }
 
+  // EVENT METHODS
+
   Future<ApiResponse<EventModel>> createEvent({
     required String token,
     required int invitationId,
@@ -353,6 +355,128 @@ class AuthService {
 
       if (e.response != null && e.response?.data is Map<String, dynamic>) {
         throw Exception(e.response?.data['message'] ?? 'Gagal memuat event');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  Future<ApiResponse<EventLoadModel>> getEventById({
+    required String token,
+    required int eventId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/events/$eventId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET EVENT BY ID ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => EventLoadModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET EVENT BY ID ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat acara');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  Future<ApiResponse<EventModel>> updateEventById({
+    required String token,
+    required int eventId,
+    required int invitationId,
+    required String name,
+    required String venueName,
+    required String venueAddress,
+    required String date,
+    required String startTime,
+    required String endTime,
+    required String description,
+    required int orderNumber,
+  }) async {
+    try {
+      final response = await _dio.put(
+        '/events/$eventId',
+        data: {
+          "invitation_id": invitationId,
+          "name": name,
+          "venue_name": venueName,
+          "venue_address": venueAddress,
+          "date": date,
+          "start_time": startTime,
+          "end_time": endTime,
+          "description": description,
+          "order_number": orderNumber,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- UPDATE EVENT RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => EventModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- UPDATE EVENT ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(
+          e.response?.data['message'] ?? 'Gagal memperbarui acara',
+        );
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  Future<ApiResponse<void>> deleteEventById({
+    required String token,
+    required int eventId,
+  }) async {
+    try {
+      final response = await _dio.delete(
+        '/events/$eventId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- DELETE EVENT RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      debugPrint('--- DELETE EVENT ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal menghapus acara');
       } else {
         throw Exception('Terjadi kesalahan jaringan');
       }

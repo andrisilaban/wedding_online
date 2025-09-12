@@ -108,6 +108,365 @@ class _HomeViewState extends State<HomeView> {
         );
   }
 
+  // Helper method to parse TimeOfDay from string
+  TimeOfDay _parseTimeOfDay(String timeString) {
+    try {
+      final parts = timeString.split(':');
+      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    } catch (e) {
+      return const TimeOfDay(hour: 9, minute: 0);
+    }
+  }
+
+  String _formatEventDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty)
+      return 'Tanggal belum ditentukan';
+
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('EEEE, d MMMM y', 'id_ID').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  Widget _buildEventListTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Daftar Acara',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple.shade700,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _showAddEventPopup,
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text('Tambah'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _events.isEmpty
+                ? _buildEmptyEventState()
+                : _buildEventList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyEventState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.event_busy, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            'Belum ada acara',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Silakan tambah acara baru untuk undangan ini',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _showAddEventPopup,
+            icon: const Icon(Icons.add),
+            label: const Text('Tambah Acara'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple.shade700,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventList() {
+    return ListView.builder(
+      itemCount: _events.length,
+      itemBuilder: (context, index) {
+        final event = _events[index];
+        return _buildEventCard(event, index);
+      },
+    );
+  }
+
+  Widget _buildEventCard(EventLoadModel event, int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.name ?? 'Nama Acara',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        event.venueName ?? 'Nama Venue',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                  onSelected: (value) async {
+                    switch (value) {
+                      case 'edit':
+                        await _storageService.saveEventId(event.id!);
+                        _showEditEventDialog(event);
+                        break;
+                      case 'delete':
+                        _showDeleteEventDialog(event);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 20, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, size: 20, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Hapus', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildEventDetail(
+              Icons.location_on,
+              event.venueAddress ?? 'Alamat venue',
+            ),
+            const SizedBox(height: 8),
+            _buildEventDetail(
+              Icons.calendar_today,
+              _formatEventDate(event.date),
+            ),
+            const SizedBox(height: 8),
+            _buildEventDetail(
+              Icons.access_time,
+              '${event.startTime ?? '00:00'} - ${event.endTime ?? '00:00'} WIB',
+            ),
+            if (event.description != null && event.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _buildEventDetail(Icons.description, event.description!),
+            ],
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Urutan: ${event.orderNumber ?? '1'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.purple.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventDetail(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade600),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showDeleteEventDialog(EventLoadModel event) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus Acara'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Apakah Anda yakin ingin menghapus acara ini?'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.name ?? 'Nama Acara',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text('${event.venueName}'),
+                    Text(_formatEventDate(event.date)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Tindakan ini tidak dapat dibatalkan.',
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  final token = await _storageService.getToken();
+
+                  if (token == null) {
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close delete dialog
+                    _handleTokenErrorOnce('Token tidak valid');
+                    return;
+                  }
+
+                  final response = await _authService.deleteEventById(
+                    token: token,
+                    eventId: int.parse(event.id!),
+                  );
+
+                  Navigator.pop(context); // Close loading
+
+                  if (response.status == 200) {
+                    Navigator.pop(context); // Close delete dialog
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Acara berhasil dihapus!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+
+                    // Refresh events list
+                    _getEventsByInvitationId();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Gagal menghapus acara'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  Navigator.pop(context); // Close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Image management methods
   Future<void> _loadImages() async {
     print('🔥 LOAD IMAGES STARTED');
@@ -651,14 +1010,7 @@ class _HomeViewState extends State<HomeView> {
                     InvitationView(onSuccess: _refreshInvitations),
                     EventView(onSuccess: _refreshInvitations),
                     _buildInvitationListTab(),
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _getEventsByInvitationId();
-                        },
-                        child: const Text("Load Event"),
-                      ),
-                    ),
+                    _buildEventListTab(),
                   ],
                 ),
               ),
@@ -827,6 +1179,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  // Fix for _showEditInvitationDialog method
   void _showEditInvitationDialog(InvitationModel invitation) {
     final groomFullNameController = TextEditingController(
       text: invitation.groomFullName,
@@ -949,10 +1302,39 @@ class _HomeViewState extends State<HomeView> {
                     // Close edit dialog
                     Navigator.pop(context);
 
+                    // Update the local state immediately
+                    final updatedInvitation = InvitationModel(
+                      id: invitation.id,
+                      title: data["title"] as String?,
+                      groomFullName: data["groom_full_name"] as String?,
+                      groomNickName: data["groom_nick_name"] as String?,
+                      groomFatherName: data["groom_father_name"] as String?,
+                      groomMotherName: data["groom_mother_name"] as String?,
+                      brideFullName: data["bride_full_name"] as String?,
+                      brideNickName: data["bride_nick_name"] as String?,
+                      brideFatherName: data["bride_father_name"] as String?,
+                      brideMotherName: data["bride_mother_name"] as String?,
+                    );
+
+                    setState(() {
+                      // Update in the all invitations list
+                      int index = _allInvitations.indexWhere(
+                        (inv) => inv.id == invitation.id,
+                      );
+                      if (index != -1) {
+                        _allInvitations[index] = updatedInvitation;
+                      }
+
+                      // Update selected invitation if it's the same
+                      if (_selectedInvitation?.id == invitation.id) {
+                        _selectedInvitation = updatedInvitation;
+                      }
+                    });
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Berhasil memperbarui undangan'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: Colors.green,
                       ),
                     );
                   }
@@ -968,6 +1350,273 @@ class _HomeViewState extends State<HomeView> {
                 }
               },
               child: Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Fix for _showEditEventDialog method - update the success part
+  void _showEditEventDialog(EventLoadModel event) {
+    final nameController = TextEditingController(text: event.name);
+    final venueNameController = TextEditingController(text: event.venueName);
+    final venueAddressController = TextEditingController(
+      text: event.venueAddress,
+    );
+    final dateController = TextEditingController(text: event.date);
+    final startTimeController = TextEditingController(text: event.startTime);
+    final endTimeController = TextEditingController(text: event.endTime);
+    final descriptionController = TextEditingController(
+      text: event.description,
+    );
+    final orderNumberController = TextEditingController(
+      text: event.orderNumber,
+    );
+
+    DateTime? selectedDate = event.date != null
+        ? DateTime.tryParse(event.date!)
+        : null;
+    TimeOfDay? selectedStartTime = event.startTime != null
+        ? _parseTimeOfDay(event.startTime!)
+        : null;
+    TimeOfDay? selectedEndTime = event.endTime != null
+        ? _parseTimeOfDay(event.endTime!)
+        : null;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Acara'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Acara',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: venueNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tempat',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: venueAddressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Alamat',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: dateController,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Tanggal',
+                    border: OutlineInputBorder(),
+                    suffixIcon: Icon(Icons.calendar_today),
+                  ),
+                  onTap: () async {
+                    selectedDate = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (selectedDate != null) {
+                      dateController.text =
+                          "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startTimeController,
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Jam Mulai',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                        onTap: () async {
+                          selectedStartTime = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                selectedStartTime ??
+                                const TimeOfDay(hour: 9, minute: 0),
+                          );
+                          if (selectedStartTime != null) {
+                            startTimeController.text =
+                                "${selectedStartTime!.hour.toString().padLeft(2, '0')}:${selectedStartTime!.minute.toString().padLeft(2, '0')}:00";
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: endTimeController,
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Jam Selesai',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.access_time),
+                        ),
+                        onTap: () async {
+                          selectedEndTime = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                selectedEndTime ??
+                                const TimeOfDay(hour: 11, minute: 0),
+                          );
+                          if (selectedEndTime != null) {
+                            endTimeController.text =
+                                "${selectedEndTime!.hour.toString().padLeft(2, '0')}:${selectedEndTime!.minute.toString().padLeft(2, '0')}:00";
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Deskripsi',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: orderNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Urutan',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  final token = await _storageService.getToken();
+                  final invitationId = await _storageService.getInvitationID();
+
+                  if (token == null || invitationId == null) {
+                    Navigator.pop(context); // Close loading
+                    Navigator.pop(context); // Close edit dialog
+                    _handleTokenErrorOnce(
+                      'Token atau Invitation ID tidak valid',
+                    );
+                    return;
+                  }
+
+                  final response = await _authService.updateEventById(
+                    token: token,
+                    eventId: int.parse(event.id!),
+                    invitationId: int.parse(invitationId),
+                    name: nameController.text,
+                    venueName: venueNameController.text,
+                    venueAddress: venueAddressController.text,
+                    date: dateController.text,
+                    startTime: startTimeController.text,
+                    endTime: endTimeController.text,
+                    description: descriptionController.text,
+                    orderNumber: int.tryParse(orderNumberController.text) ?? 1,
+                  );
+
+                  Navigator.pop(context); // Close loading
+
+                  if (response.status == 200) {
+                    Navigator.pop(context); // Close edit dialog
+
+                    // Update the local state immediately
+                    final updatedEvent = EventLoadModel(
+                      id: event.id,
+                      invitationId: event.invitationId,
+                      name: nameController.text,
+                      venueName: venueNameController.text,
+                      venueAddress: venueAddressController.text,
+                      date: dateController.text,
+                      startTime: startTimeController.text,
+                      endTime: endTimeController.text,
+                      description: descriptionController.text,
+                      orderNumber: orderNumberController.text,
+                    );
+
+                    setState(() {
+                      // Update in the events list
+                      int index = _events.indexWhere((e) => e.id == event.id);
+                      if (index != -1) {
+                        _events[index] = updatedEvent;
+                      }
+
+                      // Update tempEvent if it's the same event
+                      if (tempEvent.id == event.id) {
+                        tempEvent = updatedEvent;
+                      }
+                    });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Acara berhasil diperbarui!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+
+                    // Clear saved event ID
+                    await _storageService.clearEventId();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Gagal memperbarui acara'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  Navigator.pop(context); // Close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple.shade700,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Simpan'),
             ),
           ],
         );
@@ -1316,17 +1965,10 @@ class _HomeViewState extends State<HomeView> {
                     orderNumber: int.tryParse(orderNumberController.text) ?? 1,
                   );
 
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
+                  Navigator.pop(context); // Close loading
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Terjadi kesalahan: ")),
-                  );
                   if (response.status == 201) {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
+                    Navigator.pop(context); // Close dialog
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Acara berhasil dibuat")),
@@ -1339,9 +1981,10 @@ class _HomeViewState extends State<HomeView> {
                     );
                   }
                 } catch (e) {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
+                  Navigator.pop(context); // Close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Terjadi kesalahan: $e")),
+                  );
                 }
               },
               child: const Text('Simpan'),
@@ -1420,7 +2063,6 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // title: const Text("Home"),
         backgroundColor: Colors.purple.shade700,
         actions: [
           IconButton(
@@ -1853,7 +2495,7 @@ class _HomeViewState extends State<HomeView> {
           CountdownTimer(eventDate: tempEvent.date),
           const SizedBox(height: 20),
           Text(
-            formattedDate ?? "Rabu, 18 Juni 2025",
+            formattedDate,
             style: headerTextStyle.copyWith(
               fontSize: 24,
               fontFamily: 'Cormorant',
@@ -1861,8 +2503,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Pukul ${tempEvent.startTime} - ${tempEvent.endTime} WIB" ??
-                "Pukul 13:30 - 20:00 WIB",
+            "Pukul ${tempEvent.startTime ?? '13:30'} - ${tempEvent.endTime ?? '20:00'} WIB",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
@@ -1870,16 +2511,14 @@ class _HomeViewState extends State<HomeView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "${tempEvent.venueAddress}" ??
-                "Golden Ballroom - Grand Palace Hotel",
+            tempEvent.venueAddress ?? 'Golden Ballroom - Grand Palace Hotel',
             style: bodyTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
           ),
           Text(
-            "${tempEvent.venueName}"
-            "Jl. Raya Utama No. 123, Jakarta",
+            tempEvent.venueName ?? 'Jl. Raya Utama No. 123, Jakarta',
             style: bodyTextStyle,
           ),
           const SizedBox(height: 20),
@@ -2033,10 +2672,70 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  // Replace the existing _buildEventSchedule method in home_view.dart
+
   Widget _buildEventSchedule({required EventLoadModel defaultEvent}) {
+    // Sort events by order_number if available
+    List<EventLoadModel> sortedEvents = List.from(_events);
+    sortedEvents.sort((a, b) {
+      int orderA = int.tryParse(a.orderNumber ?? '999') ?? 999;
+      int orderB = int.tryParse(b.orderNumber ?? '999') ?? 999;
+      return orderA.compareTo(orderB);
+    });
+
+    // If no events available, show default/placeholder
+    if (sortedEvents.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.all(24),
+        decoration: cardDecoration,
+        child: Column(
+          children: [
+            Text(
+              'Susunan Acara',
+              style: headerTextStyle.copyWith(
+                fontSize: 25,
+                fontFamily: 'Cormorant',
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.event_note, size: 48, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada acara',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Silakan tambah acara melalui menu edit',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
       decoration: cardDecoration,
       child: Column(
         children: [
@@ -2049,69 +2748,222 @@ class _HomeViewState extends State<HomeView> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          sh24,
-          _buildScheduleItem(
-            icon: Icons.mosque,
-            title: defaultEvent.name ?? "Akad Nikah",
-            time:
-                "${defaultEvent.startTime} - ${defaultEvent.endTime} WIB" ??
-                "13:30 - 15:00 WIB",
-            description: "Ijab kabul dan penandatanganan buku nikah",
+          const SizedBox(height: 24),
+          // Display all events from the list
+          ...sortedEvents.asMap().entries.map((entry) {
+            int index = entry.key;
+            EventLoadModel event = entry.value;
+
+            return Column(
+              children: [
+                _buildScheduleItem(
+                  icon: _getEventIcon(event.name ?? '', index),
+                  title: event.name ?? 'Acara ${index + 1}',
+                  time: _formatEventTime(event.startTime, event.endTime),
+                  description:
+                      event.description ??
+                      'Acara ${event.name ?? 'pernikahan'}',
+                  venue: '${event.venueName ?? ''} ${event.venueAddress ?? ''}'
+                      .trim(),
+                  orderNumber: event.orderNumber,
+                ),
+                // Add spacing between events, but not after the last one
+                if (index < sortedEvents.length - 1) const SizedBox(height: 20),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // Updated _buildScheduleItem to include venue and order number
+  Widget _buildScheduleItem({
+    required IconData icon,
+    required String title,
+    required String time,
+    required String description,
+    String? venue,
+    String? orderNumber,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.shade100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.purple.withOpacity(0.08),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-          const SizedBox(height: 16),
-          _buildScheduleItem(
-            icon: Icons.celebration,
-            title: "Resepsi",
-            time:
-                "${defaultEvent.startTime} - ${defaultEvent.endTime} WIB" ??
-                "15:30 - 20:00 WIB",
-            description: "Penyambutan tamu undangan dan jamuan makan",
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.purple.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.purple.shade700, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: headerTextStyle.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                        ),
+                      ),
+                    ),
+                    if (orderNumber != null && orderNumber.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.purple.shade200),
+                        ),
+                        child: Text(
+                          '#$orderNumber',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.purple.shade600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      time,
+                      style: bodyTextStyle.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                if (venue != null && venue.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          venue,
+                          style: bodyTextStyle.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: bodyTextStyle.copyWith(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildScheduleItem({
-    required IconData icon,
-    required String title,
-    required String time,
-    required String description,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.purple.shade100,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: Colors.purple.shade700),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: headerTextStyle.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                time,
-                style: bodyTextStyle.copyWith(fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 4),
-              Text(description, style: bodyTextStyle),
-            ],
-          ),
-        ),
-      ],
-    );
+  // Helper method to get appropriate icon based on event name
+  IconData _getEventIcon(String eventName, int index) {
+    String name = eventName.toLowerCase();
+
+    if (name.contains('akad') ||
+        name.contains('nikah') ||
+        name.contains('ijab')) {
+      return Icons.mosque;
+    } else if (name.contains('resepsi') || name.contains('reception')) {
+      return Icons.celebration;
+    } else if (name.contains('pemberkatan') || name.contains('blessing')) {
+      return Icons.church;
+    } else if (name.contains('siraman') || name.contains('mitoni')) {
+      return Icons.water_drop;
+    } else if (name.contains('foto') || name.contains('photo')) {
+      return Icons.photo_camera;
+    } else if (name.contains('dinner') || name.contains('makan')) {
+      return Icons.restaurant;
+    } else if (name.contains('dance') || name.contains('tari')) {
+      return Icons.music_note;
+    } else {
+      // Default icons based on order
+      List<IconData> defaultIcons = [
+        Icons.favorite,
+        Icons.celebration,
+        Icons.local_florist,
+        Icons.cake,
+        Icons.music_note,
+        Icons.photo_camera,
+      ];
+      return defaultIcons[index % defaultIcons.length];
+    }
+  }
+
+  // Helper method to format event time
+  String _formatEventTime(String? startTime, String? endTime) {
+    if (startTime == null && endTime == null) {
+      return 'Waktu belum ditentukan';
+    }
+
+    String start = startTime != null ? _formatTime(startTime) : '00:00';
+    String end = endTime != null ? _formatTime(endTime) : '00:00';
+
+    return '$start - $end WIB';
+  }
+
+  // Helper method to format time from HH:mm:ss to HH:mm
+  String _formatTime(String timeString) {
+    try {
+      List<String> parts = timeString.split(':');
+      if (parts.length >= 2) {
+        return '${parts[0]}:${parts[1]}';
+      }
+      return timeString;
+    } catch (e) {
+      return timeString;
+    }
   }
 
   Widget _buildGallerySection() {
