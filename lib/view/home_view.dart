@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +17,6 @@ import 'package:wedding_online/view/event_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
-import 'package:wedding_online/view/profil_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -33,6 +31,10 @@ class _HomeViewState extends State<HomeView> {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   late Future<List<InvitationModel>> _invitationsFuture;
+
+  // Current selected invitation
+  InvitationModel? _selectedInvitation;
+  List<InvitationModel> _allInvitations = [];
 
   // Image management variables
   File? _imageFile;
@@ -91,6 +93,20 @@ class _HomeViewState extends State<HomeView> {
       'attendance': 'Hadir',
     },
   ];
+
+  // Get current invitation data for display
+  InvitationModel get _currentInvitation {
+    return _selectedInvitation ??
+        InvitationModel(
+          title: groomBrideTitle,
+          groomFullName: groomFullName,
+          brideFullName: brideFullName,
+          groomFatherName: groomFatherName,
+          groomMotherName: groomMotherName,
+          brideFatherName: brideFatherName,
+          brideMotherName: brideMotherName,
+        );
+  }
 
   // Image management methods
   Future<void> _loadImages() async {
@@ -503,8 +519,17 @@ class _HomeViewState extends State<HomeView> {
     final response = await _authService.getInvitations(token);
     final list = response.data ?? [];
 
+    setState(() {
+      _allInvitations = list;
+      // Set first invitation as selected if none is selected and list is not empty
+      if (_selectedInvitation == null && list.isNotEmpty) {
+        _selectedInvitation = list.first;
+        _storageService.saveInvitationId(_selectedInvitation!.id.toString());
+      }
+    });
+
     if (list.isNotEmpty && list.last.id != null) {
-      _loadEvents();
+      _getEventsByInvitationId();
       _loadImages(); // Load images when invitations are loaded
     }
     return list;
@@ -540,10 +565,10 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
-  void _loadEvents() async {
+  void _getEventsByInvitationId() async {
     try {
       final token = await _storageService.getToken();
-      String? invitationId = await _storageService.getInvitationID();
+      String? invitationId = _selectedInvitation?.id?.toString();
 
       debugPrint('------');
       debugPrint('load event invitation id: $invitationId');
@@ -615,8 +640,8 @@ class _HomeViewState extends State<HomeView> {
                 tabs: [
                   Tab(icon: Icon(Icons.card_giftcard), text: "Undangan"),
                   Tab(icon: Icon(Icons.event), text: "Acara"),
-                  Tab(icon: Icon(Icons.folder_open), text: "Event"),
-                  Tab(icon: Icon(Icons.logout), text: "Logout"),
+                  Tab(icon: Icon(Icons.folder_open), text: "Daftar Undangan"),
+                  Tab(icon: Icon(Icons.folder_open), text: "Daftar Acara"),
                 ],
               ),
               SizedBox(
@@ -625,20 +650,422 @@ class _HomeViewState extends State<HomeView> {
                   children: [
                     InvitationView(onSuccess: _refreshInvitations),
                     EventView(onSuccess: _refreshInvitations),
+                    _buildInvitationListTab(),
                     Center(
                       child: ElevatedButton(
                         onPressed: () {
-                          _loadEvents();
+                          _getEventsByInvitationId();
                         },
                         child: const Text("Load Event"),
                       ),
                     ),
-                    Center(child: _buildLogoutButton()),
                   ],
                 ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInvitationListTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pilih Undangan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.purple.shade700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _allInvitations.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Belum ada undangan.\nSilakan buat undangan baru.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _allInvitations.length,
+                    itemBuilder: (context, index) {
+                      final invitation = _allInvitations[index];
+                      final isSelected =
+                          _selectedInvitation?.id == invitation.id;
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        elevation: isSelected ? 4 : 1,
+                        color: isSelected
+                            ? Colors.purple.shade50
+                            : Colors.white,
+                        child: ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Colors.purple.shade700
+                                  : Colors.grey.shade300,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isSelected ? Icons.check : Icons.card_giftcard,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            invitation.title ?? 'Undangan Tanpa Judul',
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? Colors.purple.shade700
+                                  : Colors.black87,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${invitation.groomFullName ?? 'Mempelai Pria'} & ${invitation.brideFullName ?? 'Mempelai Wanita'}',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.purple.shade600
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: isSelected
+                                  ? Colors.purple.shade700
+                                  : Colors.grey,
+                            ),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'edit':
+                                  _showEditInvitationDialog(invitation);
+                                  break;
+                                case 'delete':
+                                  _showDeleteInvitationDialog(invitation);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Hapus',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () async {
+                            setState(() {
+                              _selectedInvitation = invitation;
+                            });
+
+                            // Save selected invitation ID to storage
+                            await _storageService.saveInvitationId(
+                              invitation.id.toString(),
+                            );
+
+                            // Reload events for selected invitation
+                            _getEventsByInvitationId();
+
+                            // Close the bottom sheet
+                            Navigator.pop(context);
+
+                            // Show success message
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Undangan "${invitation.title}" dipilih',
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditInvitationDialog(InvitationModel invitation) {
+    final groomFullNameController = TextEditingController(
+      text: invitation.groomFullName,
+    );
+    final groomNickNameController = TextEditingController(
+      text: invitation.groomNickName,
+    );
+    final groomFatherNameController = TextEditingController(
+      text: invitation.groomFatherName,
+    );
+    final groomMotherNameController = TextEditingController(
+      text: invitation.groomMotherName,
+    );
+    final brideFullNameController = TextEditingController(
+      text: invitation.brideFullName,
+    );
+    final brideNickNameController = TextEditingController(
+      text: invitation.brideNickName,
+    );
+    final brideFatherNameController = TextEditingController(
+      text: invitation.brideFatherName,
+    );
+    final brideMotherNameController = TextEditingController(
+      text: invitation.brideMotherName,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Edit Undangan'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: groomFullNameController,
+                  decoration: InputDecoration(labelText: 'Nama Pria'),
+                ),
+                TextField(
+                  controller: groomNickNameController,
+                  decoration: InputDecoration(labelText: 'Nama Singkatan Pria'),
+                ),
+                TextField(
+                  controller: groomFatherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Bapak Pria'),
+                ),
+                TextField(
+                  controller: groomMotherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Ibu Pria'),
+                ),
+                TextField(
+                  controller: brideFullNameController,
+                  decoration: InputDecoration(labelText: 'Nama Wanita'),
+                ),
+                TextField(
+                  controller: brideNickNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Singkatan Wanita',
+                  ),
+                ),
+                TextField(
+                  controller: brideFatherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Bapak Wanita'),
+                ),
+                TextField(
+                  controller: brideMotherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Ibu Wanita'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  String token = await StorageService().getToken() ?? '';
+                  final authService = AuthService();
+
+                  final data = {
+                    "title":
+                        "Pernikahan ${groomFullNameController.text} & ${brideFullNameController.text}",
+                    "theme_id": 1,
+                    "pre_wedding_text":
+                        "Dengan hormat mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan kami",
+                    "groom_full_name": groomFullNameController.text,
+                    "groom_nick_name": groomNickNameController.text,
+                    "groom_title": "Putra dari",
+                    "groom_father_name": groomFatherNameController.text,
+                    "groom_mother_name": groomMotherNameController.text,
+                    "bride_full_name": brideFullNameController.text,
+                    "bride_nick_name": brideNickNameController.text,
+                    "bride_title": "Putri dari",
+                    "bride_father_name": brideFatherNameController.text,
+                    "bride_mother_name": brideMotherNameController.text,
+                  };
+
+                  // Call update invitation API
+                  final result = await authService.updateInvitation(
+                    token,
+                    data,
+                    invitation.id!,
+                  );
+
+                  // Close loading dialog
+                  Navigator.pop(context);
+
+                  if (result.status == 200) {
+                    // Close edit dialog
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Berhasil memperbarui undangan'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // Close loading dialog
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteInvitationDialog(InvitationModel invitation) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus Undangan'),
+          content: Text(
+            'Apakah Anda yakin ingin menghapus undangan "${invitation.title}"?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) =>
+                      const Center(child: CircularProgressIndicator()),
+                );
+
+                try {
+                  final token = await _storageService.getToken();
+                  if (token == null) {
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                    _handleTokenErrorOnce('Token tidak valid');
+                    return;
+                  }
+
+                  final result = await _authService.deleteInvitation(
+                    token,
+                    invitation.id!,
+                  );
+
+                  // Close loading dialog
+                  Navigator.pop(context);
+
+                  if (result.status == 200) {
+                    // Close delete dialog
+                    Navigator.pop(context);
+
+                    // If deleted invitation was selected, reset selection
+                    if (_selectedInvitation?.id == invitation.id) {
+                      setState(() {
+                        _selectedInvitation = null;
+                        _events = [];
+                        tempEvent = EventLoadModel();
+                      });
+                      await _storageService.saveInvitationId('0');
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Undangan berhasil dihapus!'),
+                      ),
+                    );
+
+                    // Refresh invitations
+                    setState(() {
+                      _invitationsFuture = _loadInvitations();
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Gagal menghapus undangan'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  // Close loading dialog
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
         );
       },
     );
@@ -905,7 +1332,7 @@ class _HomeViewState extends State<HomeView> {
                       SnackBar(content: Text("Acara berhasil dibuat")),
                     );
 
-                    _loadEvents();
+                    _getEventsByInvitationId();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Gagal membuat acara")),
@@ -938,7 +1365,7 @@ class _HomeViewState extends State<HomeView> {
     });
 
     _invitationsFuture = _loadInvitations();
-    _loadEvents();
+    _getEventsByInvitationId();
   }
 
   @override
@@ -1074,82 +1501,67 @@ class _HomeViewState extends State<HomeView> {
               ),
             );
           }
-          return ListView.builder(
-            itemCount: invitations.length,
-            itemBuilder: (context, index) {
-              final invitation = invitations[index];
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.purple.shade900,
-                      Colors.purple.shade700,
-                      Colors.purple.shade400,
-                      Colors.purple.shade300,
-                    ],
-                  ),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // sh32,
-                      _buildLogoutButton(),
 
-                      // sw10,
-                      // ElevatedButton(
-                      //   onPressed: () => Navigator.of(context).push(
-                      //     MaterialPageRoute(
-                      //       builder: (context) => ProfilePage(),
-                      //     ),
-                      //   ),
-                      //   child: Text('Profil'),
-                      // ),
-                      // sh16,
-                      sh16,
-                      _buildWeddingInfoCard(invitation.title),
-                      sh32,
-                      _buildPresentationCard(),
-                      sh32,
-                      _buildDateSection(tempEvent),
-                      sh32,
-                      _buildCoupleSection(
-                        groomFullName:
-                            invitation.groomFullName ?? groomFullName,
-                        brideFullName:
-                            invitation.brideFullName ?? brideFullName,
-                        groomFatherName:
-                            invitation.groomFatherName ?? groomFatherName,
-                        groomMotherName:
-                            invitation.groomMotherName ?? groomMotherName,
-                        brideFatherName:
-                            invitation.brideFatherName ?? brideFatherName,
-                        brideMotherName:
-                            invitation.brideMotherName ?? brideMotherName,
-                      ),
-                      sh32,
-                      _buildEventSchedule(defaultEvent: tempEvent),
-                      sh32,
-                      _buildGallerySection(),
-                      sh32,
-                      _buildLiveStreamSection(),
-                      sh32,
-                      _buildAttendanceSection(),
-                      sh32,
-                      _buildCommentsSection(),
-                      sh32,
-                      _buildGiftSection(),
-                      sh32,
-                      _buildThankYouSection(),
-                      const SizedBox(height: 40),
-                      _buildMomenkuSection(),
-                    ],
+          // Use current selected invitation or first invitation
+          final currentInvitation = _currentInvitation;
+
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.purple.shade900,
+                  Colors.purple.shade700,
+                  Colors.purple.shade400,
+                  Colors.purple.shade300,
+                ],
+              ),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  sh16,
+                  _buildWeddingInfoCard(currentInvitation.title),
+                  sh32,
+                  _buildPresentationCard(),
+                  sh32,
+                  _buildDateSection(tempEvent),
+                  sh32,
+                  _buildCoupleSection(
+                    groomFullName:
+                        currentInvitation.groomFullName ?? groomFullName,
+                    brideFullName:
+                        currentInvitation.brideFullName ?? brideFullName,
+                    groomFatherName:
+                        currentInvitation.groomFatherName ?? groomFatherName,
+                    groomMotherName:
+                        currentInvitation.groomMotherName ?? groomMotherName,
+                    brideFatherName:
+                        currentInvitation.brideFatherName ?? brideFatherName,
+                    brideMotherName:
+                        currentInvitation.brideMotherName ?? brideMotherName,
                   ),
-                ),
-              );
-            },
+                  sh32,
+                  _buildEventSchedule(defaultEvent: tempEvent),
+                  sh32,
+                  _buildGallerySection(),
+                  sh32,
+                  _buildLiveStreamSection(),
+                  sh32,
+                  _buildAttendanceSection(),
+                  sh32,
+                  _buildCommentsSection(),
+                  sh32,
+                  _buildGiftSection(),
+                  sh32,
+                  _buildThankYouSection(),
+                  const SizedBox(height: 40),
+                  _buildMomenkuSection(),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -2293,7 +2705,7 @@ class _HomeViewState extends State<HomeView> {
           ),
           sh10,
           Text(
-            'For beind part of our special day',
+            'For being part of our special day',
             style: bodyTextStyle.copyWith(
               color: Colors.white.withOpacity(0.8),
               fontSize: 16,

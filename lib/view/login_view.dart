@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/services/auth_service.dart';
-import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/view/home_view.dart';
 import 'package:wedding_online/view/register_view.dart';
 
