@@ -7,7 +7,7 @@ import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
 import 'package:wedding_online/services/storage_service.dart';
 
-class AuthService {
+class AuthService2 {
   String defaultInvitationId = '999999999';
   final Dio _dio = Dio(
     BaseOptions(

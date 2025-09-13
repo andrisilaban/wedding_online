@@ -192,12 +192,16 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
       }
 
       final invitationId = await _storageService.getInvitationID();
+      debugPrint('----------');
+      debugPrint(invitationId.toString());
 
-      if (invitationId == null || invitationId.isEmpty) {
+      if (invitationId == null ||
+          invitationId.isEmpty ||
+          invitationId == '999999999') {
         if (!mounted) return;
         setState(() => _isLoading = false);
         _showSnackBar(
-          "Invitation ID tidak tersedia. Silakan buat undangan terlebih dahulu.",
+          "Invitation tidak tersedia. Silakan buat undangan terlebih dahulu.",
           Colors.orange,
         );
         return;

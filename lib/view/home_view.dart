@@ -215,9 +215,19 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildEventList() {
+    // Safety check: pastikan _events tidak null dan tidak kosong
+    if (_events.isEmpty) {
+      return _buildEmptyEventState();
+    }
+
     return ListView.builder(
       itemCount: _events.length,
       itemBuilder: (context, index) {
+        // Safety check: pastikan index valid
+        if (index >= _events.length) {
+          return const SizedBox.shrink(); // Return empty widget
+        }
+
         final event = _events[index];
         return _buildEventCard(event, index);
       },
@@ -428,6 +438,22 @@ class _HomeViewState extends State<HomeView> {
                   if (response.status == 200) {
                     Navigator.pop(context); // Close delete dialog
 
+                    // PERBAIKAN: Update state langsung setelah berhasil hapus
+                    setState(() {
+                      // Hapus dari list lokal
+                      _events.removeWhere((e) => e.id == event.id);
+
+                      // Update tempEvent jika event yang dihapus adalah tempEvent
+                      if (tempEvent.id == event.id) {
+                        tempEvent = _events.isNotEmpty
+                            ? _events.first
+                            : EventLoadModel();
+                      }
+
+                      // Set loading false untuk memastikan UI update
+                      _isLoading = false;
+                    });
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Acara berhasil dihapus!'),
@@ -435,8 +461,13 @@ class _HomeViewState extends State<HomeView> {
                       ),
                     );
 
-                    // Refresh events list
-                    _getEventsByInvitationId();
+                    // Optional: Refresh data dari server untuk memastikan sinkronisasi
+                    // Tapi tunggu sebentar agar user melihat perubahan UI terlebih dahulu
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (mounted) {
+                        _getEventsByInvitationId();
+                      }
+                    });
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -869,29 +900,40 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<List<InvitationModel>> _loadInvitations() async {
-    final token = await _storageService.getToken();
+    try {
+      final token = await _storageService.getToken();
 
-    if (token == null) {
-      throw Exception('Token tidak ditemukan. Silakan login ulang.');
-    }
-
-    final response = await _authService.getInvitations(token);
-    final list = response.data ?? [];
-
-    setState(() {
-      _allInvitations = list;
-      // Set first invitation as selected if none is selected and list is not empty
-      if (_selectedInvitation == null && list.isNotEmpty) {
-        _selectedInvitation = list.first;
-        _storageService.saveInvitationId(_selectedInvitation!.id.toString());
+      if (token == null) {
+        throw Exception('Token tidak ditemukan. Silakan login ulang.');
       }
-    });
 
-    if (list.isNotEmpty && list.last.id != null) {
-      _getEventsByInvitationId();
-      _loadImages(); // Load images when invitations are loaded
+      final response = await _authService.getInvitations(token);
+      final list = response.data ?? [];
+
+      setState(() {
+        _allInvitations = list;
+        // Safe check before accessing first element
+        if (_selectedInvitation == null && list.isNotEmpty) {
+          _selectedInvitation = list.first;
+          _storageService.saveInvitationId(_selectedInvitation!.id.toString());
+        }
+      });
+
+      // Safe check before accessing last element and its id
+      if (list.isNotEmpty && list.last.id != null) {
+        _getEventsByInvitationId();
+        _loadImages();
+      }
+
+      return list;
+    } catch (e) {
+      debugPrint('Error loading invitations: $e');
+      setState(() {
+        _allInvitations = [];
+        _selectedInvitation = null;
+      });
+      rethrow;
     }
-    return list;
   }
 
   void _refreshInvitations() {
@@ -937,7 +979,10 @@ class _HomeViewState extends State<HomeView> {
         return;
       }
 
-      if (invitationId == null || invitationId.isEmpty || invitationId == '0') {
+      if (invitationId == null ||
+          invitationId.isEmpty ||
+          invitationId == '0' ||
+          invitationId == '999999999') {
         debugPrint('Invitation ID tidak tersedia, skip load events');
         setState(() {
           _events = [];
@@ -961,7 +1006,9 @@ class _HomeViewState extends State<HomeView> {
             int orderB = int.tryParse(b.orderNumber ?? '1') ?? 1;
             return orderA.compareTo(orderB);
           });
-          tempEvent = response.data!.first;
+          tempEvent = (response.data != null && response.data!.isNotEmpty)
+              ? response.data!.first
+              : EventLoadModel();
         } else {
           tempEvent = EventLoadModel();
         }
