@@ -955,7 +955,13 @@ class _HomeViewState extends State<HomeView> {
       setState(() {
         _events = response.data ?? [];
         if (response.data != null && response.data!.isNotEmpty) {
-          tempEvent = response.data!.last;
+          List<EventLoadModel> sortedEvents = List.from(response.data!);
+          sortedEvents.sort((a, b) {
+            int orderA = int.tryParse(a.orderNumber ?? '1') ?? 1;
+            int orderB = int.tryParse(b.orderNumber ?? '1') ?? 1;
+            return orderA.compareTo(orderB);
+          });
+          tempEvent = response.data!.first;
         } else {
           tempEvent = EventLoadModel();
         }
