@@ -10,13 +10,16 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
+import 'package:wedding_online/models/theme_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
+import 'package:wedding_online/services/theme_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
 import 'package:wedding_online/view/event_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
+import 'package:wedding_online/view/theme_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -26,6 +29,10 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  // TAMBAHAN VARIABEL UNTUK THEME
+  WeddingTheme _currentTheme = ThemeService.availableThemes.first;
+  final ThemeService _themeService = ThemeService();
+  bool _isThemeLoading = true;
   bool _hasRedirected = false;
 
   final AuthService _authService = AuthService();
@@ -93,6 +100,123 @@ class _HomeViewState extends State<HomeView> {
       'attendance': 'Hadir',
     },
   ];
+  Future<void> _initializeApp() async {
+    try {
+      // Load theme terlebih dahulu
+      await _loadCurrentTheme();
+
+      // Setelah theme loaded, load data lainnya
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _confettiController.play();
+      });
+
+      _invitationsFuture = _loadInvitations();
+      _getEventsByInvitationId();
+    } catch (e) {
+      debugPrint('Error initializing app: $e');
+      // Jika gagal load theme, set ke default
+      setState(() {
+        _currentTheme = ThemeService.availableThemes.first;
+        _isThemeLoading = false;
+      });
+    }
+  }
+
+  // Method untuk load theme saat ini
+  Future<void> _loadCurrentTheme() async {
+    try {
+      final theme = await _themeService.getCurrentTheme();
+      if (mounted) {
+        setState(() {
+          _currentTheme = theme;
+          _isThemeLoading = false;
+        });
+      }
+      debugPrint('Theme loaded: ${theme.name}');
+    } catch (e) {
+      debugPrint('Error loading theme: $e');
+      if (mounted) {
+        setState(() {
+          _currentTheme = ThemeService.availableThemes.first;
+          _isThemeLoading = false;
+        });
+      }
+    }
+  }
+
+  // Method untuk mengubah theme dengan feedback yang lebih baik
+  Future<void> _changeTheme(WeddingTheme newTheme) async {
+    try {
+      // Show loading indicator
+      if (mounted) {
+        setState(() {
+          _isThemeLoading = true;
+        });
+      }
+
+      await _themeService.saveTheme(newTheme.id);
+
+      if (mounted) {
+        setState(() {
+          _currentTheme = newTheme;
+          _isThemeLoading = false;
+        });
+
+        // Show success message dengan warna theme baru
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Text(newTheme.decorativeIcons.first),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Tema "${newTheme.name}" berhasil diterapkan!'),
+                ),
+              ],
+            ),
+            backgroundColor: newTheme.primaryColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+
+      debugPrint('Theme changed to: ${newTheme.name}');
+    } catch (e) {
+      debugPrint('Error changing theme: $e');
+      if (mounted) {
+        setState(() {
+          _isThemeLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah tema: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // Method untuk menampilkan theme selector yang lebih baik
+  void _showThemeSelector() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ThemeView(
+        currentTheme: _currentTheme,
+        onThemeSelected: (theme) async {
+          await _changeTheme(theme);
+        },
+      ),
+    );
+  }
 
   // Get current invitation data for display
   InvitationModel get _currentInvitation {
@@ -147,22 +271,22 @@ class _HomeViewState extends State<HomeView> {
                   color: Colors.purple.shade700,
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddEventPopup,
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text('Tambah'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-              ),
+              // ElevatedButton.icon(
+              //   onPressed: _showAddEventPopup,
+              //   icon: const Icon(Icons.add, size: 20),
+              //   label: const Text('Tambah'),
+              //   style: ElevatedButton.styleFrom(
+              //     backgroundColor: Colors.purple.shade700,
+              //     foregroundColor: Colors.white,
+              //     padding: const EdgeInsets.symmetric(
+              //       horizontal: 12,
+              //       vertical: 8,
+              //     ),
+              //     shape: RoundedRectangleBorder(
+              //       borderRadius: BorderRadius.circular(20),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 16),
@@ -200,15 +324,15 @@ class _HomeViewState extends State<HomeView> {
             style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _showAddEventPopup,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Acara'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.shade700,
-              foregroundColor: Colors.white,
-            ),
-          ),
+          // ElevatedButton.icon(
+          //   onPressed: _showAddEventPopup,
+          //   icon: const Icon(Icons.add),
+          //   label: const Text('Tambah Acara'),
+          //   style: ElevatedButton.styleFrom(
+          //     backgroundColor: Colors.purple.shade700,
+          //     foregroundColor: Colors.white,
+          //   ),
+          // ),
         ],
       ),
     );
@@ -953,13 +1077,13 @@ class _HomeViewState extends State<HomeView> {
           SnackBar(
             content: Text('Terjadi kesalahan: $error'),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
 
-      await Future.delayed(const Duration(seconds: 2));
       await _storageService.clearAll();
+      await Future.delayed(const Duration(seconds: 1));
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
@@ -1026,13 +1150,22 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _logout() async {
-    await _storageService.clearAll();
+    // Gunakan clearAllExceptTheme agar theme tidak hilang saat logout
+    await _storageService.clearAllExceptTheme();
 
     if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Berhasil logout. Tema Anda akan tetap tersimpan.'),
+        backgroundColor: _currentTheme.primaryColor,
+      ),
+    );
 
     Navigator.of(context, rootNavigator: true).pushReplacementNamed('/login');
   }
 
+  // Update _showEditMenu untuk menambahkan theme tab
   void _showEditMenu() {
     showModalBottomSheet(
       context: context,
@@ -1042,18 +1175,33 @@ class _HomeViewState extends State<HomeView> {
       ),
       builder: (context) {
         return DefaultTabController(
-          length: 4,
+          length: 5, // Ubah dari 4 menjadi 5
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const TabBar(
-                labelColor: Colors.blue,
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 8, bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                labelColor: _currentTheme.primaryColor,
                 unselectedLabelColor: Colors.grey,
-                tabs: [
+                indicatorColor: _currentTheme.primaryColor,
+                labelStyle: const TextStyle(fontSize: 12),
+                tabs: const [
                   Tab(icon: Icon(Icons.card_giftcard), text: "Undangan"),
                   Tab(icon: Icon(Icons.event), text: "Acara"),
                   Tab(icon: Icon(Icons.folder_open), text: "Daftar Undangan"),
                   Tab(icon: Icon(Icons.folder_open), text: "Daftar Acara"),
+                  Tab(icon: Icon(Icons.palette), text: "Tema"),
                 ],
               ),
               SizedBox(
@@ -1064,6 +1212,7 @@ class _HomeViewState extends State<HomeView> {
                     EventView(onSuccess: _refreshInvitations),
                     _buildInvitationListTab(),
                     _buildEventListTab(),
+                    _buildThemeTab(),
                   ],
                 ),
               ),
@@ -1071,6 +1220,222 @@ class _HomeViewState extends State<HomeView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildThemeTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.palette, color: _currentTheme.primaryColor, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Pilih Tema Undangan',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _currentTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _currentTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _currentTheme.primaryColor.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _currentTheme.decorativeIcons.first,
+                  style: const TextStyle(fontSize: 20),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Tema saat ini: ${_currentTheme.name}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _currentTheme.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: ThemeService.availableThemes.length,
+              itemBuilder: (context, index) {
+                final theme = ThemeService.availableThemes[index];
+                final isSelected = theme.id == _currentTheme.id;
+
+                return GestureDetector(
+                  onTap: () async {
+                    if (!isSelected) {
+                      await _changeTheme(theme);
+                    }
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: theme.gradientColors,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: isSelected
+                          ? Border.all(color: Colors.white, width: 3)
+                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.primaryColor.withOpacity(0.3),
+                          spreadRadius: isSelected ? 3 : 1,
+                          blurRadius: isSelected ? 8 : 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // Content
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              theme.decorativeIcons.first,
+                              style: const TextStyle(fontSize: 32),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              theme.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                theme.description,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Selection indicator
+                        if (isSelected)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.check,
+                                color: theme.primaryColor,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        // Loading indicator
+                        if (_isThemeLoading && isSelected)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // Quick theme buttons
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      // Reset ke default theme
+                      await _changeTheme(ThemeService.availableThemes.first);
+                    },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Reset'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _currentTheme.primaryColor,
+                      side: BorderSide(color: _currentTheme.primaryColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Tutup'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _currentTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2055,6 +2420,7 @@ class _HomeViewState extends State<HomeView> {
   @override
   void initState() {
     super.initState();
+    _initializeApp();
 
     Future.delayed(const Duration(milliseconds: 800), () {
       _confettiController.play();
@@ -2114,12 +2480,46 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isThemeLoading) {
+      return Scaffold(
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: _currentTheme.gradientColors,
+            ),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.white),
+                SizedBox(height: 16),
+                Text(
+                  'Memuat tema...',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.purple.shade700,
+        backgroundColor: _currentTheme.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.palette),
+            tooltip: "Ubah Tema",
+            onPressed: _showThemeSelector,
+          ),
+          IconButton(
             icon: const Icon(Icons.edit),
+            tooltip: "Edit",
             onPressed: () => _showEditMenu(),
           ),
           IconButton(
@@ -2301,7 +2701,7 @@ class _HomeViewState extends State<HomeView> {
           decoration: cardDecoration.copyWith(
             boxShadow: [
               BoxShadow(
-                color: Colors.purple.withOpacity(0.3),
+                color: _currentTheme.primaryColor.withOpacity(0.3),
                 spreadRadius: 2,
                 blurRadius: 10,
                 offset: const Offset(0, 5),
@@ -2612,24 +3012,48 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             "Bride & Groom",
-            style: headerTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
+
+          // Groom Section
           GestureDetector(
             onTap: () => _showImageOptions(1, 'groom.jpeg'),
             onLongPress: () => _showImageManagementDialog(1, 'groom.jpeg'),
             child: Container(
-              decoration: circleImageDecoration,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _currentTheme.primaryColor.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: ClipOval(
                 child: _isSupabaseImage('assets/images/gallery1.jpeg', 1)
                     ? Image.network(
@@ -2658,9 +3082,11 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 16),
           Text(
             groomFullName,
-            style: coupleNameTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
+              fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -2669,16 +3095,34 @@ class _HomeViewState extends State<HomeView> {
             "Bapak $groomFatherName & Ibu $groomMotherName\n"
             "Jakarta",
             textAlign: TextAlign.center,
-            style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.5,
+              color: _currentTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 24),
-          Icon(Icons.favorite, color: Colors.purple.shade300, size: 32),
+
+          // Heart Icon with theme color
+          Icon(Icons.favorite, color: _currentTheme.accentColor, size: 32),
           const SizedBox(height: 24),
+
+          // Bride Section
           GestureDetector(
             onTap: () => _showImageOptions(2, 'bride.jpeg'),
             onLongPress: () => _showImageManagementDialog(2, 'bride.jpeg'),
             child: Container(
-              decoration: circleImageDecoration,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: _currentTheme.primaryColor.withOpacity(0.3),
+                    spreadRadius: 2,
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: ClipOval(
                 child: _isSupabaseImage('assets/images/gallery1.jpeg', 2)
                     ? Image.network(
@@ -2707,9 +3151,11 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 16),
           Text(
             brideFullName,
-            style: coupleNameTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
+              fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -2718,17 +3164,19 @@ class _HomeViewState extends State<HomeView> {
             "Bapak $brideFatherName & Ibu $brideMotherName\n"
             "Bandung",
             textAlign: TextAlign.center,
-            style: bodyTextStyle.copyWith(fontSize: 16, height: 1.5),
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.5,
+              color: _currentTheme.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // Replace the existing _buildEventSchedule method in home_view.dart
-
+  // 8. _buildEventSchedule dengan theme dinamis
   Widget _buildEventSchedule({required EventLoadModel defaultEvent}) {
-    // Sort events by order_number if available
     List<EventLoadModel> sortedEvents = List.from(_events);
     sortedEvents.sort((a, b) {
       int orderA = int.tryParse(a.orderNumber ?? '999') ?? 999;
@@ -2736,47 +3184,67 @@ class _HomeViewState extends State<HomeView> {
       return orderA.compareTo(orderB);
     });
 
-    // If no events available, show default/placeholder
     if (sortedEvents.isEmpty) {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 24),
         padding: const EdgeInsets.all(24),
-        decoration: cardDecoration,
+        decoration: BoxDecoration(
+          color: _currentTheme.cardBackground,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _currentTheme.primaryColor.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           children: [
             Text(
               'Susunan Acara',
-              style: headerTextStyle.copyWith(
+              style: TextStyle(
                 fontSize: 25,
-                fontFamily: 'Cormorant',
+                fontFamily: _currentTheme.fontFamily,
                 letterSpacing: 1.2,
                 fontWeight: FontWeight.bold,
+                color: _currentTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey.shade50,
+                color: _currentTheme.secondaryColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: _currentTheme.secondaryColor.withOpacity(0.3),
+                ),
               ),
               child: Column(
                 children: [
-                  Icon(Icons.event_note, size: 48, color: Colors.grey.shade400),
+                  Icon(
+                    Icons.event_note,
+                    size: 48,
+                    color: _currentTheme.secondaryColor,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Belum ada acara',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade600,
+                      color: _currentTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Silakan tambah acara melalui menu edit',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _currentTheme.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -2789,20 +3257,31 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             'Susunan Acara',
-            style: headerTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 25,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
-          // Display all events from the list
           ...sortedEvents.asMap().entries.map((entry) {
             int index = entry.key;
             EventLoadModel event = entry.value;
@@ -2820,7 +3299,6 @@ class _HomeViewState extends State<HomeView> {
                       .trim(),
                   orderNumber: event.orderNumber,
                 ),
-                // Add spacing between events, but not after the last one
                 if (index < sortedEvents.length - 1) const SizedBox(height: 20),
               ],
             );
@@ -2830,7 +3308,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  // Updated _buildScheduleItem to include venue and order number
+  // 9. _buildScheduleItem dengan theme dinamis
   Widget _buildScheduleItem({
     required IconData icon,
     required String title,
@@ -2842,12 +3320,12 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _currentTheme.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple.shade100),
+        border: Border.all(color: _currentTheme.primaryColor.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.08),
+            color: _currentTheme.primaryColor.withOpacity(0.08),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -2860,10 +3338,10 @@ class _HomeViewState extends State<HomeView> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.purple.shade100,
+              color: _currentTheme.primaryColor.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: Colors.purple.shade700, size: 24),
+            child: Icon(icon, color: _currentTheme.primaryColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -2875,10 +3353,11 @@ class _HomeViewState extends State<HomeView> {
                     Expanded(
                       child: Text(
                         title,
-                        style: headerTextStyle.copyWith(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
+                          color: _currentTheme.primaryColor,
+                          fontFamily: _currentTheme.fontFamily,
                         ),
                       ),
                     ),
@@ -2889,16 +3368,18 @@ class _HomeViewState extends State<HomeView> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
+                          color: _currentTheme.accentColor.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.purple.shade200),
+                          border: Border.all(
+                            color: _currentTheme.accentColor.withOpacity(0.5),
+                          ),
                         ),
                         child: Text(
                           '#$orderNumber',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: Colors.purple.shade600,
+                            color: _currentTheme.primaryColor,
                           ),
                         ),
                       ),
@@ -2910,14 +3391,14 @@ class _HomeViewState extends State<HomeView> {
                     Icon(
                       Icons.access_time,
                       size: 16,
-                      color: Colors.grey.shade600,
+                      color: _currentTheme.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       time,
-                      style: bodyTextStyle.copyWith(
+                      style: TextStyle(
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade700,
+                        color: _currentTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -2929,15 +3410,15 @@ class _HomeViewState extends State<HomeView> {
                       Icon(
                         Icons.location_on,
                         size: 16,
-                        color: Colors.grey.shade600,
+                        color: _currentTheme.textSecondary,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           venue,
-                          style: bodyTextStyle.copyWith(
+                          style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade700,
+                            color: _currentTheme.textSecondary,
                           ),
                         ),
                       ),
@@ -2947,9 +3428,9 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(height: 8),
                 Text(
                   description,
-                  style: bodyTextStyle.copyWith(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
+                    color: _currentTheme.textSecondary,
                   ),
                 ),
               ],
@@ -3424,22 +3905,34 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             "Wedding Gift",
-            style: headerTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            "Doa restu Bapak/lbu sekalian merupakan karunia yang sangat berarti bagi kami. "
-            "Dan jika memberi merupakan ungkapan tanda kasih, Bapak/lbu dapat memberi kado "
+            "Doa restu Bapak/Ibu sekalian merupakan karunia yang sangat berarti bagi kami. "
+            "Dan jika memberi merupakan ungkapan tanda kasih, Bapak/Ibu dapat memberi kado "
             "secara cashless. Terima kasih",
             textAlign: TextAlign.center,
             style: italicTextStyle.copyWith(fontSize: 16, letterSpacing: 0.5),

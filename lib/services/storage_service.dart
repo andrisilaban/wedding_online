@@ -5,8 +5,10 @@ class StorageService {
   static const _tokenKey = 'token';
   static const _invitationId = 'invitationID';
   static const _eventId = 'eventID';
+  static const _selectedThemeKey = 'selected_theme'; // Tambahan untuk theme
   static const String _defaultInvitationId = '0'; // Default value
   static const String _defaultEventId = '0'; // Default value
+  static const String _defaultThemeId = 'royal_purple'; // Default theme
 
   // TOKEN METHODS
   Future<void> saveToken(String token) async {
@@ -72,6 +74,48 @@ class StorageService {
     await prefs.remove(_eventId);
   }
 
+  // THEME METHODS - TAMBAHAN BARU
+  Future<void> saveSelectedTheme(String themeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    debugPrint('----');
+    debugPrint('selected theme: $themeId');
+    await prefs.setString(_selectedThemeKey, themeId);
+  }
+
+  Future<String?> getSelectedTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selectedThemeKey);
+  }
+
+  // Method tambahan untuk mendapatkan theme dengan default value
+  Future<String> getSelectedThemeOrDefault() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selectedThemeKey) ?? _defaultThemeId;
+  }
+
+  // Method untuk mengecek apakah user sudah pernah memilih theme
+  Future<bool> hasSelectedTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_selectedThemeKey);
+  }
+
+  // Method untuk menghapus theme selection (reset ke default)
+  Future<void> clearSelectedTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_selectedThemeKey);
+  }
+
+  // GENERAL STRING METHODS (untuk keperluan umum lainnya)
+  Future<void> saveString(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
+
+  Future<String?> getString(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
   // CLEAR METHODS
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
@@ -87,5 +131,31 @@ class StorageService {
   Future<void> clearInvitationData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_invitationId);
+  }
+
+  // Method untuk clear semua data kecuali theme (agar theme tetap tersimpan saat logout)
+  Future<void> clearAllExceptTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Simpan theme yang sedang dipilih
+    final currentTheme = await getSelectedTheme();
+
+    // Clear semua data
+    await prefs.clear();
+
+    // Restore theme jika ada
+    if (currentTheme != null) {
+      await saveSelectedTheme(currentTheme);
+    }
+  }
+
+  // Method untuk mendapatkan informasi theme yang tersimpan (untuk debugging)
+  Future<Map<String, dynamic>> getThemeInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'hasSelectedTheme': prefs.containsKey(_selectedThemeKey),
+      'selectedTheme': prefs.getString(_selectedThemeKey),
+      'defaultTheme': _defaultThemeId,
+    };
   }
 }
