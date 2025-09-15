@@ -1028,22 +1028,27 @@ class _HomeViewState extends State<HomeView> {
       final token = await _storageService.getToken();
 
       if (token == null) {
-        throw Exception('Token tidak ditemukan. Silakan login ulang.');
+        debugPrint('No token found, redirecting to login');
+        _handleTokenErrorOnce('Session expired. Please login again.');
+        return [];
       }
 
+      debugPrint('Token retrieved successfully, making API call');
+
+      // This is where your exception is being thrown
       final response = await _authService.getInvitations(token);
+
+      debugPrint('API call successful');
       final list = response.data ?? [];
 
       setState(() {
         _allInvitations = list;
-        // Safe check before accessing first element
         if (_selectedInvitation == null && list.isNotEmpty) {
           _selectedInvitation = list.first;
           _storageService.saveInvitationId(_selectedInvitation!.id.toString());
         }
       });
 
-      // Safe check before accessing last element and its id
       if (list.isNotEmpty && list.last.id != null) {
         _getEventsByInvitationId();
         _loadImages();
@@ -1052,11 +1057,22 @@ class _HomeViewState extends State<HomeView> {
       return list;
     } catch (e) {
       debugPrint('Error loading invitations: $e');
+
+      // Handle token-related errors specifically
+      if (e.toString().contains('Token tidak valid')) {
+        debugPrint('Invalid token detected, clearing storage and redirecting');
+        _handleTokenErrorOnce('Your session has expired. Please login again.');
+      } else {
+        debugPrint('Other error occurred: $e');
+        _handleTokenErrorOnce('Unable to load data. Please try again.');
+      }
+
       setState(() {
         _allInvitations = [];
         _selectedInvitation = null;
       });
-      rethrow;
+
+      return [];
     }
   }
 
@@ -2548,14 +2564,10 @@ class _HomeViewState extends State<HomeView> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.purple.shade900,
-                    Colors.purple.shade700,
-                    Colors.purple.shade400,
-                    Colors.purple.shade300,
-                  ],
+                  colors: _currentTheme.gradientColors,
                 ),
               ),
+
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -2605,12 +2617,7 @@ class _HomeViewState extends State<HomeView> {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Colors.purple.shade900,
-                  Colors.purple.shade700,
-                  Colors.purple.shade400,
-                  Colors.purple.shade300,
-                ],
+                colors: _currentTheme.gradientColors,
               ),
             ),
             child: SingleChildScrollView(
@@ -2698,13 +2705,15 @@ class _HomeViewState extends State<HomeView> {
         ),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: cardDecoration.copyWith(
+          decoration: BoxDecoration(
+            color: _currentTheme.cardBackground,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: _currentTheme.primaryColor.withOpacity(0.3),
-                spreadRadius: 2,
-                blurRadius: 10,
-                offset: const Offset(0, 5),
+                color: _currentTheme.primaryColor.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -2720,7 +2729,7 @@ class _HomeViewState extends State<HomeView> {
                     decoration: circleImageDecoration.copyWith(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.purple.withOpacity(0.4),
+                          color: _currentTheme.primaryColor.withOpacity(0.1),
                           spreadRadius: 2,
                           blurRadius: 10,
                           offset: const Offset(0, 5),
@@ -2755,29 +2764,41 @@ class _HomeViewState extends State<HomeView> {
                 const SizedBox(height: 20),
                 Text(
                   "The Wedding of",
-                  style: headerTextStyle.copyWith(fontFamily: 'Cormorant'),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontFamily: _currentTheme.fontFamily,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: _currentTheme.primaryColor,
+                  ),
                 ),
                 Text(
                   newTitle,
                   textAlign: TextAlign.center,
-                  style: coupleNameTextStyle.copyWith(
+                  style: TextStyle(
                     fontSize: 38,
-                    fontFamily: 'Cormorant',
+                    fontFamily: _currentTheme.fontFamily,
                     letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: _currentTheme.primaryColor,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.purple.shade200)),
+                    Expanded(
+                      child: Divider(color: _currentTheme.secondaryColor),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Icon(
                         Icons.favorite,
-                        color: Colors.purple.shade300,
+                        color: _currentTheme.primaryColor,
                       ),
                     ),
-                    Expanded(child: Divider(color: Colors.purple.shade200)),
+                    Expanded(
+                      child: Divider(color: _currentTheme.secondaryColor),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -2787,8 +2808,10 @@ class _HomeViewState extends State<HomeView> {
                   textAlign: TextAlign.center,
                   style: italicTextStyle.copyWith(
                     fontSize: 16,
+                    fontFamily: _currentTheme.fontFamily,
                     letterSpacing: 0.5,
                     wordSpacing: 1.2,
+                    color: _currentTheme.primaryColor,
                   ),
                 ),
               ],
@@ -2891,22 +2914,41 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 24),
       padding: EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             "Assalamualaikum Wr. Wb.",
             style: headerTextStyle.copyWith(
               fontSize: 24,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.0,
+              fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
           Text(
             "Dengan memohon rahmat dan ridho Allah SWT, kami bermaksud menyelenggarakan acara pernikahan kami:",
             textAlign: TextAlign.center,
-            style: italicTextStyle.copyWith(fontSize: 16, letterSpacing: 0.5),
+            style: italicTextStyle.copyWith(
+              fontSize: 16,
+              fontFamily: _currentTheme.fontFamily,
+              letterSpacing: 0.5,
+              wordSpacing: 1.2,
+              color: _currentTheme.primaryColor,
+            ),
           ),
         ],
       ),
@@ -2924,12 +2966,15 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration.copyWith(
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.purple.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -2939,9 +2984,10 @@ class _HomeViewState extends State<HomeView> {
             "Save The Date",
             style: headerTextStyle.copyWith(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -2951,7 +2997,9 @@ class _HomeViewState extends State<HomeView> {
             formattedDate,
             style: headerTextStyle.copyWith(
               fontSize: 24,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
+              fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -2959,7 +3007,10 @@ class _HomeViewState extends State<HomeView> {
             "Pukul ${tempEvent.startTime ?? '13:30'} - ${tempEvent.endTime ?? '20:00'} WIB",
             style: bodyTextStyle.copyWith(
               fontSize: 18,
+              fontFamily: _currentTheme.fontFamily,
+              letterSpacing: 1.0,
               fontWeight: FontWeight.w500,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -2967,12 +3018,21 @@ class _HomeViewState extends State<HomeView> {
             tempEvent.venueAddress ?? 'Golden Ballroom - Grand Palace Hotel',
             style: bodyTextStyle.copyWith(
               fontSize: 18,
+              fontFamily: _currentTheme.fontFamily,
+              letterSpacing: 1.0,
               fontWeight: FontWeight.w500,
+              color: _currentTheme.primaryColor,
             ),
           ),
           Text(
             tempEvent.venueName ?? 'Jl. Raya Utama No. 123, Jakarta',
-            style: bodyTextStyle,
+            style: bodyTextStyle.copyWith(
+              fontSize: 18,
+              fontFamily: _currentTheme.fontFamily,
+              letterSpacing: 1.0,
+              fontWeight: FontWeight.w500,
+              color: _currentTheme.primaryColor,
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -2987,11 +3047,11 @@ class _HomeViewState extends State<HomeView> {
             icon: const Icon(Icons.location_on),
             label: const Text("Lihat Lokasi"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.shade700,
+              backgroundColor: _currentTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(25),
               ),
               elevation: 5,
             ),
@@ -3507,7 +3567,18 @@ class _HomeViewState extends State<HomeView> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
           padding: const EdgeInsets.all(16),
-          decoration: cardDecoration,
+          decoration: BoxDecoration(
+            color: _currentTheme.cardBackground,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: _currentTheme.primaryColor.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Column(
             children: [
               GridView.count(
@@ -3562,7 +3633,10 @@ class _HomeViewState extends State<HomeView> {
                 textAlign: TextAlign.center,
                 style: italicTextStyle.copyWith(
                   fontSize: 16,
+                  fontFamily: _currentTheme.fontFamily,
                   letterSpacing: 0.5,
+                  wordSpacing: 1.2,
+                  color: _currentTheme.primaryColor,
                 ),
               ),
             ],
@@ -3580,18 +3654,21 @@ class _HomeViewState extends State<HomeView> {
           if (withDivider)
             Row(
               children: [
-                Expanded(child: Divider(color: Colors.purple.shade200)),
+                Expanded(child: Divider(color: Colors.white)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
                     title,
                     style: headerTextStyle.copyWith(
-                      fontFamily: 'Cormorant',
+                      fontSize: 24,
+                      fontFamily: _currentTheme.fontFamily,
+                      letterSpacing: 1.0,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                Expanded(child: Divider(color: Colors.purple.shade200)),
+                Expanded(child: Divider(color: Colors.white)),
               ],
             )
           else
@@ -3611,16 +3688,28 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             "Livestream",
-            style: headerTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 16),
@@ -3629,17 +3718,28 @@ class _HomeViewState extends State<HomeView> {
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.purple.shade300),
+              border: Border.all(color: _currentTheme.secondaryColor),
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.videocam, size: 50, color: Colors.purple.shade300),
+                  Icon(
+                    Icons.videocam,
+                    size: 50,
+                    color: _currentTheme.secondaryColor,
+                  ),
                   const SizedBox(height: 16),
-                  Text(
-                    "Live Streaming akan dimulai pada hari-H",
-                    style: bodyTextStyle,
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      "Live Streaming akan dimulai pada hari-H",
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: _currentTheme.textSecondary,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -3674,16 +3774,28 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Text(
             "Konfirmasi Kehadiran",
-            style: headerTextStyle.copyWith(
+            style: TextStyle(
               fontSize: 28,
-              fontFamily: 'Cormorant',
+              fontFamily: _currentTheme.fontFamily,
               letterSpacing: 1.2,
               fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
             ),
           ),
           const SizedBox(height: 24),
@@ -3696,13 +3808,19 @@ class _HomeViewState extends State<HomeView> {
               fillColor: Colors.white,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade300, width: 2),
+                borderSide: BorderSide(
+                  color: _currentTheme.secondaryColor,
+                  width: 2,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
               ),
-              prefixIcon: Icon(Icons.person, color: Colors.purple.shade300),
+              prefixIcon: Icon(
+                Icons.person,
+                color: _currentTheme.secondaryColor,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -3716,13 +3834,19 @@ class _HomeViewState extends State<HomeView> {
               fillColor: Colors.white,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade300, width: 2),
+                borderSide: BorderSide(
+                  color: _currentTheme.secondaryColor,
+                  width: 2,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
               ),
-              prefixIcon: Icon(Icons.message, color: Colors.purple.shade300),
+              prefixIcon: Icon(
+                Icons.message,
+                color: _currentTheme.secondaryColor,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -3732,7 +3856,7 @@ class _HomeViewState extends State<HomeView> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.purple.shade300, width: 2),
+              border: Border.all(color: _currentTheme.secondaryColor, width: 2),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -3781,13 +3905,12 @@ class _HomeViewState extends State<HomeView> {
           ElevatedButton(
             onPressed: _submitComment,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.shade700,
+              backgroundColor: _currentTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(25),
               ),
-              elevation: 5,
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -3810,7 +3933,18 @@ class _HomeViewState extends State<HomeView> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
-      decoration: cardDecoration,
+      decoration: BoxDecoration(
+        color: _currentTheme.cardBackground,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: _currentTheme.primaryColor.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Row(
@@ -3821,6 +3955,10 @@ class _HomeViewState extends State<HomeView> {
                 style: headerTextStyle.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
+                  fontFamily: _currentTheme.fontFamily,
+                  letterSpacing: 0.5,
+                  wordSpacing: 1.2,
+                  color: _currentTheme.primaryColor,
                 ),
               ),
               Text(
@@ -3828,7 +3966,10 @@ class _HomeViewState extends State<HomeView> {
                 style: headerTextStyle.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  fontFamily: _currentTheme.fontFamily,
+                  letterSpacing: 0.5,
+                  wordSpacing: 1.2,
+                  color: _currentTheme.primaryColor,
                 ),
               ),
             ],
@@ -3935,7 +4076,13 @@ class _HomeViewState extends State<HomeView> {
             "Dan jika memberi merupakan ungkapan tanda kasih, Bapak/Ibu dapat memberi kado "
             "secara cashless. Terima kasih",
             textAlign: TextAlign.center,
-            style: italicTextStyle.copyWith(fontSize: 16, letterSpacing: 0.5),
+            style: italicTextStyle.copyWith(
+              fontSize: 16,
+              fontFamily: _currentTheme.fontFamily,
+              letterSpacing: 0.5,
+              wordSpacing: 1.2,
+              color: _currentTheme.primaryColor,
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -3951,11 +4098,11 @@ class _HomeViewState extends State<HomeView> {
               _showBankDetails ? "Sembunyikan Detail" : "Lihat Detail",
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple.shade700,
+              backgroundColor: _currentTheme.primaryColor,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(25),
               ),
             ),
           ),
@@ -3966,7 +4113,7 @@ class _HomeViewState extends State<HomeView> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.purple.shade300),
+                border: Border.all(color: _currentTheme.secondaryColor),
               ),
               child: Column(
                 children: [
@@ -3990,7 +4137,7 @@ class _HomeViewState extends State<HomeView> {
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.purple.shade700,
-                      side: BorderSide(color: Colors.purple.shade300),
+                      side: BorderSide(color: _currentTheme.secondaryColor),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 10,
@@ -4019,7 +4166,18 @@ class _HomeViewState extends State<HomeView> {
       children: [
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: cardDecoration,
+          decoration: BoxDecoration(
+            color: _currentTheme.cardBackground,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: _currentTheme.primaryColor.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -4065,7 +4223,10 @@ class _HomeViewState extends State<HomeView> {
                   textAlign: TextAlign.center,
                   style: italicTextStyle.copyWith(
                     fontSize: 16,
+                    fontFamily: _currentTheme.fontFamily,
                     letterSpacing: 0.5,
+                    wordSpacing: 1.2,
+                    color: _currentTheme.primaryColor,
                   ),
                 ),
               ],

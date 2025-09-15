@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:wedding_online/models/theme_model.dart';
+import 'package:wedding_online/services/theme_service.dart';
 
 class CountdownTimer extends StatefulWidget {
   final String? eventDate; // ubah jadi String
@@ -12,6 +13,10 @@ class CountdownTimer extends StatefulWidget {
 }
 
 class _CountdownTimerState extends State<CountdownTimer> {
+  WeddingTheme _currentTheme = ThemeService.availableThemes.first;
+  final ThemeService _themeService = ThemeService();
+  bool _isThemeLoading = true;
+
   late Timer _timer;
   late DateTime eventDate;
   late Duration _remainingTime;
@@ -20,6 +25,28 @@ class _CountdownTimerState extends State<CountdownTimer> {
   void initState() {
     super.initState();
     _initializeTimer();
+    _loadCurrentTheme();
+  }
+
+  // Load theme dari ThemeService
+  Future<void> _loadCurrentTheme() async {
+    try {
+      final theme = await _themeService.getCurrentTheme();
+      if (mounted) {
+        setState(() {
+          _currentTheme = theme;
+          _isThemeLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading theme in CountdownTimer: $e');
+      if (mounted) {
+        setState(() {
+          _currentTheme = ThemeService.availableThemes.first;
+          _isThemeLoading = false;
+        });
+      }
+    }
   }
 
   void _initializeTimer() {
@@ -62,7 +89,27 @@ class _CountdownTimerState extends State<CountdownTimer> {
   }
 
   @override
+  void didUpdateWidget(CountdownTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Jika eventDate berubah, reinitialize timer
+    if (widget.eventDate != oldWidget.eventDate) {
+      debugPrint(
+        'EventDate changed from ${oldWidget.eventDate} to ${widget.eventDate}',
+      );
+      _initializeTimer();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Show loading indicator while theme is loading
+    if (_isThemeLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
     int days = _remainingTime.inDays;
     int hours = _remainingTime.inHours % 24;
     int minutes = _remainingTime.inMinutes % 60;
@@ -84,16 +131,36 @@ class _CountdownTimerState extends State<CountdownTimer> {
         ),
         const SizedBox(height: 20),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: () {
+            // Add calendar functionality here if needed
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'Fitur Save to Calendar akan segera hadir!',
+                ),
+                backgroundColor: _currentTheme.primaryColor,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          },
           icon: const Icon(Icons.calendar_today),
           label: const Text("Save to Calendar"),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.purple,
+            backgroundColor: _currentTheme.primaryColor,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            textStyle: GoogleFonts.poppins(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+            elevation: 5,
+            shadowColor: _currentTheme.primaryColor.withOpacity(0.3),
+            textStyle: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
+              fontFamily: _currentTheme.fontFamily,
             ),
           ),
         ),
@@ -108,26 +175,43 @@ class _CountdownTimerState extends State<CountdownTimer> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.purple.shade100,
-            borderRadius: BorderRadius.circular(10),
+            // Gunakan warna dari theme yang aktif
+            color: _currentTheme.cardBackground,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _currentTheme.primaryColor.withOpacity(0.3),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _currentTheme.primaryColor.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: Text(
             value.toString().padLeft(2, '0'),
-            style: GoogleFonts.poppins(
+            style: TextStyle(
               fontSize: 24,
+              letterSpacing: 1.0,
               fontWeight: FontWeight.bold,
-              color: Colors.purple.shade700,
+              color: _currentTheme.primaryColor,
+              fontFamily: _currentTheme.fontFamily,
             ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         Text(
           label,
-          style: GoogleFonts.poppins(
+          style: TextStyle(
             fontSize: 14,
+            letterSpacing: 1.0,
             fontWeight: FontWeight.w500,
-            color: Colors.black87,
+            color: _currentTheme.primaryColor,
+            fontFamily: _currentTheme.fontFamily,
           ),
         ),
       ],
