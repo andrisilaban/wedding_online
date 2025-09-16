@@ -2991,7 +2991,10 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
           const SizedBox(height: 16),
-          CountdownTimer(eventDate: tempEvent.date),
+          CountdownTimer(
+            eventDate: tempEvent.date,
+            currentTheme: _currentTheme, // Pass current theme ke CountdownTimer
+          ),
           const SizedBox(height: 20),
           Text(
             formattedDate,
@@ -3803,7 +3806,13 @@ class _HomeViewState extends State<HomeView> {
             controller: _nameController,
             decoration: InputDecoration(
               labelText: "Nama",
-              labelStyle: TextStyle(color: Colors.purple.shade700),
+              labelStyle: TextStyle(
+                fontSize: 14,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w500,
+                color: _currentTheme.primaryColor,
+                fontFamily: _currentTheme.fontFamily,
+              ),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
@@ -3829,7 +3838,13 @@ class _HomeViewState extends State<HomeView> {
             maxLines: 3,
             decoration: InputDecoration(
               labelText: "Ucapan & Doa",
-              labelStyle: TextStyle(color: Colors.purple.shade700),
+              labelStyle: TextStyle(
+                fontSize: 14,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w500,
+                color: _currentTheme.primaryColor,
+                fontFamily: _currentTheme.fontFamily,
+              ),
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
@@ -3863,7 +3878,13 @@ class _HomeViewState extends State<HomeView> {
                 value: selectedValue,
                 hint: Text(
                   "Status Kehadiran",
-                  style: TextStyle(color: Colors.purple.shade700),
+                  style: TextStyle(
+                    fontSize: 14,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w500,
+                    color: _currentTheme.primaryColor,
+                    fontFamily: _currentTheme.fontFamily,
+                  ),
                 ),
                 icon: Icon(
                   Icons.arrow_drop_down,
@@ -3888,7 +3909,15 @@ class _HomeViewState extends State<HomeView> {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(value),
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: 14,
+                            letterSpacing: 1.0,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: _currentTheme.fontFamily,
+                          ),
+                        ),
                       ],
                     ),
                   );

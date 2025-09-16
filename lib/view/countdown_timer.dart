@@ -4,9 +4,15 @@ import 'package:wedding_online/models/theme_model.dart';
 import 'package:wedding_online/services/theme_service.dart';
 
 class CountdownTimer extends StatefulWidget {
-  final String? eventDate; // ubah jadi String
+  final String? eventDate;
+  final WeddingTheme?
+  currentTheme; // Tambahkan parameter untuk menerima theme dari parent
 
-  const CountdownTimer({super.key, this.eventDate});
+  const CountdownTimer({
+    super.key,
+    this.eventDate,
+    this.currentTheme, // Tambahkan parameter ini
+  });
 
   @override
   State<CountdownTimer> createState() => _CountdownTimerState();
@@ -25,7 +31,21 @@ class _CountdownTimerState extends State<CountdownTimer> {
   void initState() {
     super.initState();
     _initializeTimer();
-    _loadCurrentTheme();
+    _initializeTheme();
+  }
+
+  // Pisahkan inisialisasi theme
+  void _initializeTheme() {
+    // Jika ada theme yang dikirim dari parent, gunakan itu
+    if (widget.currentTheme != null) {
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
+    } else {
+      // Jika tidak ada, load dari ThemeService
+      _loadCurrentTheme();
+    }
   }
 
   // Load theme dari ThemeService
@@ -98,6 +118,18 @@ class _CountdownTimerState extends State<CountdownTimer> {
         'EventDate changed from ${oldWidget.eventDate} to ${widget.eventDate}',
       );
       _initializeTimer();
+    }
+
+    // PERBAIKAN UTAMA: Update theme ketika theme dari parent berubah
+    if (widget.currentTheme != oldWidget.currentTheme &&
+        widget.currentTheme != null) {
+      debugPrint(
+        'Theme changed in CountdownTimer: ${widget.currentTheme!.name}',
+      );
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
     }
   }
 
