@@ -1224,8 +1224,14 @@ class _HomeViewState extends State<HomeView> {
                 height: 450,
                 child: TabBarView(
                   children: [
-                    InvitationView(onSuccess: _refreshInvitations),
-                    EventView(onSuccess: _refreshInvitations),
+                    InvitationView(
+                      currentTheme: _currentTheme,
+                      onSuccess: _refreshInvitations,
+                    ),
+                    EventView(
+                      currentTheme: _currentTheme,
+                      onSuccess: _refreshInvitations,
+                    ),
                     _buildInvitationListTab(),
                     _buildEventListTab(),
                     _buildThemeTab(),
@@ -1466,17 +1472,33 @@ class _HomeViewState extends State<HomeView> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.purple.shade700,
+              color: _currentTheme.primaryColor,
+              fontFamily: _currentTheme.fontFamily,
             ),
           ),
           const SizedBox(height: 16),
           Expanded(
             child: _allInvitations.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Belum ada undangan.\nSilakan buat undangan baru.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.card_giftcard_outlined,
+                          size: 64,
+                          color: _currentTheme.textPrimary.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Belum ada undangan.\nSilakan buat undangan baru.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _currentTheme.textPrimary.withOpacity(0.6),
+                            fontFamily: _currentTheme.fontFamily,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -1486,123 +1508,256 @@ class _HomeViewState extends State<HomeView> {
                       final isSelected =
                           _selectedInvitation?.id == invitation.id;
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        elevation: isSelected ? 4 : 1,
-                        color: isSelected
-                            ? Colors.purple.shade50
-                            : Colors.white,
-                        child: ListTile(
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
                               color: isSelected
-                                  ? Colors.purple.shade700
-                                  : Colors.grey.shade300,
-                              shape: BoxShape.circle,
+                                  ? _currentTheme.primaryColor.withOpacity(0.2)
+                                  : _currentTheme.primaryColor.withOpacity(
+                                      0.05,
+                                    ),
+                              blurRadius: isSelected ? 12 : 6,
+                              offset: const Offset(0, 3),
                             ),
-                            child: Icon(
-                              isSelected ? Icons.check : Icons.card_giftcard,
+                          ],
+                        ),
+                        child: Card(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          color: isSelected
+                              ? _currentTheme.primaryColor.withOpacity(0.1)
+                              : _currentTheme.cardBackground,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
                               color: isSelected
-                                  ? Colors.white
-                                  : Colors.grey.shade600,
-                              size: 20,
-                            ),
-                          ),
-                          title: Text(
-                            invitation.title ?? 'Undangan Tanpa Judul',
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? Colors.purple.shade700
-                                  : Colors.black87,
+                                  ? _currentTheme.primaryColor.withOpacity(0.3)
+                                  : _currentTheme.primaryColor.withOpacity(0.1),
+                              width: isSelected ? 2 : 1,
                             ),
                           ),
-                          subtitle: Text(
-                            '${invitation.groomFullName ?? 'Mempelai Pria'} & ${invitation.brideFullName ?? 'Mempelai Wanita'}',
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.purple.shade600
-                                  : Colors.grey.shade600,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
                             ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: isSelected
-                                  ? Colors.purple.shade700
-                                  : Colors.grey,
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: isSelected
+                                    ? LinearGradient(
+                                        colors: [
+                                          _currentTheme.primaryColor,
+                                          _currentTheme.primaryColor
+                                              .withOpacity(0.8),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : LinearGradient(
+                                        colors: [
+                                          _currentTheme.textPrimary.withOpacity(
+                                            0.1,
+                                          ),
+                                          _currentTheme.textPrimary.withOpacity(
+                                            0.05,
+                                          ),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                shape: BoxShape.circle,
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: _currentTheme.primaryColor
+                                              .withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.card_giftcard,
+                                color: isSelected
+                                    ? Colors.white
+                                    : _currentTheme.textPrimary.withOpacity(
+                                        0.6,
+                                      ),
+                                size: isSelected ? 24 : 22,
+                              ),
                             ),
-                            onSelected: (value) {
-                              switch (value) {
-                                case 'edit':
-                                  _showEditInvitationDialog(invitation);
-                                  break;
-                                case 'delete':
-                                  _showDeleteInvitationDialog(invitation);
-                                  break;
-                              }
+                            title: Text(
+                              invitation.title ?? 'Undangan Tanpa Judul',
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? _currentTheme.primaryColor
+                                    : _currentTheme.textPrimary,
+                                fontSize: 16,
+                                fontFamily: _currentTheme.fontFamily,
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '${invitation.groomFullName ?? 'Mempelai Pria'} & ${invitation.brideFullName ?? 'Mempelai Wanita'}',
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? _currentTheme.primaryColor.withOpacity(
+                                          0.8,
+                                        )
+                                      : _currentTheme.textPrimary.withOpacity(
+                                          0.7,
+                                        ),
+                                  fontSize: 14,
+                                  fontFamily: _currentTheme.fontFamily,
+                                ),
+                              ),
+                            ),
+                            trailing: Container(
+                              decoration: BoxDecoration(
+                                color: _currentTheme.cardBackground,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _currentTheme.primaryColor.withOpacity(
+                                    0.1,
+                                  ),
+                                ),
+                              ),
+                              child: PopupMenuButton<String>(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: isSelected
+                                      ? _currentTheme.primaryColor
+                                      : _currentTheme.textPrimary.withOpacity(
+                                          0.6,
+                                        ),
+                                  size: 20,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                color: _currentTheme.cardBackground,
+                                elevation: 8,
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'edit':
+                                      _showEditInvitationDialog(invitation);
+                                      break;
+                                    case 'delete':
+                                      _showDeleteInvitationDialog(invitation);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: _currentTheme.primaryColor,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Edit',
+                                          style: TextStyle(
+                                            color: _currentTheme.textPrimary,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Hapus',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            onTap: () async {
+                              setState(() {
+                                _selectedInvitation = invitation;
+                              });
+
+                              // Save selected invitation ID to storage
+                              await _storageService.saveInvitationId(
+                                invitation.id.toString(),
+                              );
+
+                              // Reload events for selected invitation
+                              _getEventsByInvitationId();
+
+                              // Close the bottom sheet
+                              Navigator.pop(context);
+
+                              // Show success message with themed snackbar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Undangan "${invitation.title}" dipilih',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: _currentTheme.primaryColor,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
                             },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'edit',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.edit, size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Edit'),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Hapus',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
                           ),
-                          onTap: () async {
-                            setState(() {
-                              _selectedInvitation = invitation;
-                            });
-
-                            // Save selected invitation ID to storage
-                            await _storageService.saveInvitationId(
-                              invitation.id.toString(),
-                            );
-
-                            // Reload events for selected invitation
-                            _getEventsByInvitationId();
-
-                            // Close the bottom sheet
-                            Navigator.pop(context);
-
-                            // Show success message
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Undangan "${invitation.title}" dipilih',
-                                ),
-                                backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
                         ),
                       );
                     },

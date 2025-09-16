@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import '../models/theme_model.dart';
+import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
 class EventView extends StatefulWidget {
   final VoidCallback onSuccess;
+  final WeddingTheme? currentTheme; // Parameter theme dari parent
 
-  const EventView({super.key, required this.onSuccess});
+  const EventView({super.key, required this.onSuccess, this.currentTheme});
 
   @override
   _EventViewState createState() => _EventViewState();
@@ -14,6 +17,11 @@ class EventView extends StatefulWidget {
 class _EventViewState extends State<EventView> with TickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
+
+  // Theme management
+  WeddingTheme _currentTheme = ThemeService.availableThemes.first;
+  final ThemeService _themeService = ThemeService();
+  bool _isThemeLoading = true;
 
   // Controllers
   final TextEditingController nameController = TextEditingController();
@@ -32,6 +40,7 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    _initializeTheme();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -42,7 +51,57 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
     _animationController.forward();
   }
 
-  // Custom TextField widget with beautiful styling
+  // Inisialisasi theme
+  void _initializeTheme() {
+    // Jika ada theme yang dikirim dari parent, gunakan itu
+    if (widget.currentTheme != null) {
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
+    } else {
+      // Jika tidak ada, load dari ThemeService
+      _loadCurrentTheme();
+    }
+  }
+
+  // Load theme dari ThemeService
+  Future<void> _loadCurrentTheme() async {
+    try {
+      final theme = await _themeService.getCurrentTheme();
+      if (mounted) {
+        setState(() {
+          _currentTheme = theme;
+          _isThemeLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading theme in EventView: $e');
+      if (mounted) {
+        setState(() {
+          _currentTheme = ThemeService.availableThemes.first;
+          _isThemeLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(EventView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Update theme ketika theme dari parent berubah
+    if (widget.currentTheme != oldWidget.currentTheme &&
+        widget.currentTheme != null) {
+      debugPrint('Theme changed in EventView: ${widget.currentTheme!.name}');
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
+    }
+  }
+
+  // Custom TextField widget with theme styling
   Widget _buildStyledTextField({
     required TextEditingController controller,
     required String label,
@@ -63,16 +122,17 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
           RichText(
             text: TextSpan(
               text: label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF2C3E50),
+                color: _currentTheme.textPrimary,
+                fontFamily: _currentTheme.fontFamily,
               ),
               children: isRequired
                   ? [
-                      const TextSpan(
+                      TextSpan(
                         text: ' *',
-                        style: TextStyle(color: Color(0xFFE74C3C)),
+                        style: TextStyle(color: _currentTheme.primaryColor),
                       ),
                     ]
                   : [],
@@ -84,7 +144,7 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: _currentTheme.primaryColor.withOpacity(0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -96,24 +156,26 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
               onTap: onTap,
               keyboardType: keyboardType,
               maxLines: maxLines,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF2C3E50),
+                color: _currentTheme.textPrimary,
+                fontFamily: _currentTheme.fontFamily,
               ),
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
+                  color: _currentTheme.textPrimary.withOpacity(0.5),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
+                  fontFamily: _currentTheme.fontFamily,
                 ),
                 prefixIcon: prefixIcon != null
                     ? Container(
                         margin: const EdgeInsets.only(left: 8, right: 8),
                         child: Icon(
                           prefixIcon,
-                          color: const Color(0xFF3498DB),
+                          color: _currentTheme.primaryColor,
                           size: 22,
                         ),
                       )
@@ -123,45 +185,45 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                         margin: const EdgeInsets.only(right: 8),
                         child: Icon(
                           suffixIcon,
-                          color: const Color(0xFF7F8C8D),
+                          color: _currentTheme.textPrimary.withOpacity(0.6),
                           size: 22,
                         ),
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: _currentTheme.cardBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: Colors.grey.shade200,
+                    color: _currentTheme.primaryColor.withOpacity(0.2),
                     width: 1.5,
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: Colors.grey.shade200,
+                    color: _currentTheme.primaryColor.withOpacity(0.2),
                     width: 1.5,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF3498DB),
+                  borderSide: BorderSide(
+                    color: _currentTheme.primaryColor,
                     width: 2.5,
                   ),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE74C3C),
+                  borderSide: BorderSide(
+                    color: _currentTheme.primaryColor.withRed(255),
                     width: 2,
                   ),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE74C3C),
+                  borderSide: BorderSide(
+                    color: _currentTheme.primaryColor.withRed(255),
                     width: 2.5,
                   ),
                 ),
@@ -245,7 +307,7 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
       if (!mounted) return;
 
       if (response.status == 201) {
-        _showSnackBar("Acara berhasil dibuat", Colors.green);
+        _showSnackBar("Acara berhasil dibuat", _currentTheme.primaryColor);
         _clearForm();
         widget.onSuccess();
 
@@ -268,7 +330,11 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
       SnackBar(
         content: Text(
           message,
-          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            fontFamily: _currentTheme.fontFamily,
+          ),
         ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
@@ -305,18 +371,47 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator while theme is loading
+    if (_isThemeLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          title: Text(
+            "Tambah Acara",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontFamily: _currentTheme.fontFamily,
+            ),
+          ),
+          backgroundColor: _currentTheme.primaryColor,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(color: _currentTheme.primaryColor),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Tambah Acara",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: _currentTheme.fontFamily,
           ),
         ),
-        backgroundColor: const Color(0xFF3498DB),
+        backgroundColor: _currentTheme.primaryColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -331,11 +426,11 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(24),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _currentTheme.cardBackground,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: _currentTheme.primaryColor.withOpacity(0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -349,8 +444,11 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3498DB), Color(0xFF2980B9)],
+                    gradient: LinearGradient(
+                      colors: [
+                        _currentTheme.primaryColor,
+                        _currentTheme.primaryColor.withOpacity(0.8),
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -371,7 +469,7 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -381,14 +479,16 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
+                                fontFamily: _currentTheme.fontFamily,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               "Isi detail acara dengan lengkap",
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.white70,
+                                fontFamily: _currentTheme.fontFamily,
                               ),
                             ),
                           ],
@@ -440,8 +540,8 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                       builder: (context, child) {
                         return Theme(
                           data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.light(
-                              primary: Color(0xFF3498DB),
+                            colorScheme: ColorScheme.light(
+                              primary: _currentTheme.primaryColor,
                               onPrimary: Colors.white,
                             ),
                           ),
@@ -473,8 +573,8 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                             builder: (context, child) {
                               return Theme(
                                 data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF3498DB),
+                                  colorScheme: ColorScheme.light(
+                                    primary: _currentTheme.primaryColor,
                                     onPrimary: Colors.white,
                                   ),
                                 ),
@@ -505,8 +605,8 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                             builder: (context, child) {
                               return Theme(
                                 data: Theme.of(context).copyWith(
-                                  colorScheme: const ColorScheme.light(
-                                    primary: Color(0xFF3498DB),
+                                  colorScheme: ColorScheme.light(
+                                    primary: _currentTheme.primaryColor,
                                     onPrimary: Colors.white,
                                   ),
                                 ),
@@ -548,14 +648,17 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                   height: 56,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3498DB), Color(0xFF2980B9)],
+                    gradient: LinearGradient(
+                      colors: [
+                        _currentTheme.primaryColor,
+                        _currentTheme.primaryColor.withOpacity(0.8),
+                      ],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF3498DB).withOpacity(0.3),
+                        color: _currentTheme.primaryColor.withOpacity(0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -577,21 +680,22 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Row(
+                            : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
+                                  const Icon(
                                     Icons.save_rounded,
                                     color: Colors.white,
                                     size: 22,
                                   ),
-                                  SizedBox(width: 12),
+                                  const SizedBox(width: 12),
                                   Text(
                                     "Simpan Acara",
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
+                                      fontFamily: _currentTheme.fontFamily,
                                     ),
                                   ),
                                 ],
@@ -610,15 +714,16 @@ class _EventViewState extends State<EventView> with TickerProviderStateMixin {
                     Icon(
                       Icons.info_outline,
                       size: 16,
-                      color: Colors.grey.shade600,
+                      color: _currentTheme.textPrimary.withOpacity(0.7),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       "* Field wajib diisi",
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: _currentTheme.textPrimary.withOpacity(0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
+                        fontFamily: _currentTheme.fontFamily,
                       ),
                     ),
                   ],

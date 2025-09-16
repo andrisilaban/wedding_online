@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import '../models/theme_model.dart';
+import '../services/theme_service.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 
 class InvitationView extends StatefulWidget {
-  const InvitationView({super.key, required this.onSuccess});
+  const InvitationView({
+    super.key,
+    required this.onSuccess,
+    this.currentTheme, // Tambahkan parameter untuk menerima theme dari parent
+  });
 
   final VoidCallback onSuccess;
+  final WeddingTheme? currentTheme; // Parameter theme dari parent
 
   @override
   State<InvitationView> createState() => _InvitationViewState();
@@ -13,6 +20,11 @@ class InvitationView extends StatefulWidget {
 
 class _InvitationViewState extends State<InvitationView>
     with TickerProviderStateMixin {
+  // Theme management
+  WeddingTheme _currentTheme = ThemeService.availableThemes.first;
+  final ThemeService _themeService = ThemeService();
+  bool _isThemeLoading = true;
+
   // Controllers
   final groomFullNameController = TextEditingController();
   final groomNickNameController = TextEditingController();
@@ -31,6 +43,7 @@ class _InvitationViewState extends State<InvitationView>
   @override
   void initState() {
     super.initState();
+    _initializeTheme();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -50,6 +63,41 @@ class _InvitationViewState extends State<InvitationView>
     _animationController.forward();
   }
 
+  // Inisialisasi theme
+  void _initializeTheme() {
+    // Jika ada theme yang dikirim dari parent, gunakan itu
+    if (widget.currentTheme != null) {
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
+    } else {
+      // Jika tidak ada, load dari ThemeService
+      _loadCurrentTheme();
+    }
+  }
+
+  // Load theme dari ThemeService
+  Future<void> _loadCurrentTheme() async {
+    try {
+      final theme = await _themeService.getCurrentTheme();
+      if (mounted) {
+        setState(() {
+          _currentTheme = theme;
+          _isThemeLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading theme in InvitationView: $e');
+      if (mounted) {
+        setState(() {
+          _currentTheme = ThemeService.availableThemes.first;
+          _isThemeLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -64,14 +112,36 @@ class _InvitationViewState extends State<InvitationView>
     super.dispose();
   }
 
-  // Custom styled TextField widget
+  @override
+  void didUpdateWidget(InvitationView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Update theme ketika theme dari parent berubah
+    if (widget.currentTheme != oldWidget.currentTheme &&
+        widget.currentTheme != null) {
+      debugPrint(
+        'Theme changed in InvitationView: ${widget.currentTheme!.name}',
+      );
+      setState(() {
+        _currentTheme = widget.currentTheme!;
+        _isThemeLoading = false;
+      });
+    }
+  }
+
+  // Custom styled TextField widget dengan theme
   Widget _buildStyledTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     String? hint,
-    Color? iconColor,
+    bool isForGroom = true,
   }) {
+    // Gunakan warna dari theme, dengan variasi untuk pria/wanita
+    Color iconColor = isForGroom
+        ? _currentTheme.primaryColor.withBlue(255) // Lebih biru untuk pria
+        : _currentTheme.primaryColor; // Warna utama theme untuk wanita
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -79,10 +149,11 @@ class _InvitationViewState extends State<InvitationView>
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF2C3E50),
+              color: _currentTheme.textPrimary,
+              fontFamily: _currentTheme.fontFamily,
             ),
           ),
           const SizedBox(height: 8),
@@ -91,7 +162,7 @@ class _InvitationViewState extends State<InvitationView>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: _currentTheme.primaryColor.withOpacity(0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -99,48 +170,43 @@ class _InvitationViewState extends State<InvitationView>
             ),
             child: TextField(
               controller: controller,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF2C3E50),
+                color: _currentTheme.textPrimary,
+                fontFamily: _currentTheme.fontFamily,
               ),
               decoration: InputDecoration(
                 hintText: hint ?? "Masukkan $label",
                 hintStyle: TextStyle(
-                  color: Colors.grey.shade400,
+                  color: _currentTheme.textPrimary.withOpacity(0.5),
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
+                  fontFamily: _currentTheme.fontFamily,
                 ),
                 prefixIcon: Container(
                   margin: const EdgeInsets.only(left: 12, right: 12),
-                  child: Icon(
-                    icon,
-                    color: iconColor ?? const Color(0xFFE91E63),
-                    size: 22,
-                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: _currentTheme.cardBackground,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: Colors.grey.shade200,
+                    color: _currentTheme.primaryColor.withOpacity(0.2),
                     width: 1.5,
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: Colors.grey.shade200,
+                    color: _currentTheme.primaryColor.withOpacity(0.2),
                     width: 1.5,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: iconColor ?? const Color(0xFFE91E63),
-                    width: 2.5,
-                  ),
+                  borderSide: BorderSide(color: iconColor, width: 2.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -154,7 +220,7 @@ class _InvitationViewState extends State<InvitationView>
     );
   }
 
-  // Section header widget
+  // Section header widget dengan theme
   Widget _buildSectionHeader({
     required String title,
     required IconData icon,
@@ -196,17 +262,22 @@ class _InvitationViewState extends State<InvitationView>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
+                    fontFamily: _currentTheme.fontFamily,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(fontSize: 14, color: Colors.white70),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      fontFamily: _currentTheme.fontFamily,
+                    ),
                   ),
                 ],
               ],
@@ -271,7 +342,7 @@ class _InvitationViewState extends State<InvitationView>
       if (mounted) {
         _showSnackBar(
           'Undangan berhasil dibuat!',
-          Colors.green,
+          _currentTheme.primaryColor,
           Icons.check_circle,
         );
         widget.onSuccess();
@@ -298,9 +369,10 @@ class _InvitationViewState extends State<InvitationView>
             Expanded(
               child: Text(
                 message,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 14,
+                  fontFamily: _currentTheme.fontFamily,
                 ),
               ),
             ),
@@ -324,23 +396,56 @@ class _InvitationViewState extends State<InvitationView>
     brideFatherNameController.clear();
     brideMotherNameController.clear();
 
-    _showSnackBar('Form berhasil direset', Colors.blue, Icons.refresh);
+    _showSnackBar(
+      'Form berhasil direset',
+      _currentTheme.primaryColor,
+      Icons.refresh,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator while theme is loading
+    if (_isThemeLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          title: Text(
+            "Buat Undangan",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontFamily: _currentTheme.fontFamily,
+            ),
+          ),
+          backgroundColor: _currentTheme.primaryColor,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(color: _currentTheme.primaryColor),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Buat Undangan",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: _currentTheme.fontFamily,
           ),
         ),
-        backgroundColor: const Color(0xFFE91E63),
+        backgroundColor: _currentTheme.primaryColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -360,11 +465,11 @@ class _InvitationViewState extends State<InvitationView>
                 padding: const EdgeInsets.all(20),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _currentTheme.cardBackground,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: _currentTheme.primaryColor.withOpacity(0.1),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -378,8 +483,11 @@ class _InvitationViewState extends State<InvitationView>
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFE91E63), Color(0xFFAD1457)],
+                          gradient: LinearGradient(
+                            colors: [
+                              _currentTheme.primaryColor,
+                              _currentTheme.primaryColor.withOpacity(0.8),
+                            ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -400,7 +508,7 @@ class _InvitationViewState extends State<InvitationView>
                               ),
                             ),
                             const SizedBox(width: 16),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -410,14 +518,16 @@ class _InvitationViewState extends State<InvitationView>
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
+                                      fontFamily: _currentTheme.fontFamily,
                                     ),
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
                                     "Isi data mempelai dengan lengkap",
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.white70,
+                                      fontFamily: _currentTheme.fontFamily,
                                     ),
                                   ),
                                 ],
@@ -433,39 +543,39 @@ class _InvitationViewState extends State<InvitationView>
                         title: "Data Mempelai Pria",
                         subtitle: "Informasi lengkap mempelai pria",
                         icon: Icons.person,
-                        color: const Color(0xFF2196F3),
+                        color: _currentTheme.primaryColor.withBlue(255),
                       ),
 
                       _buildStyledTextField(
                         controller: groomFullNameController,
                         label: "Nama Lengkap Pria",
                         icon: Icons.person,
-                        iconColor: const Color(0xFF2196F3),
                         hint: "Contoh: Ahmad Rizki Pratama",
+                        isForGroom: true,
                       ),
 
                       _buildStyledTextField(
                         controller: groomNickNameController,
                         label: "Nama Panggilan Pria",
                         icon: Icons.person_outline,
-                        iconColor: const Color(0xFF2196F3),
                         hint: "Contoh: Rizki",
+                        isForGroom: true,
                       ),
 
                       _buildStyledTextField(
                         controller: groomFatherNameController,
                         label: "Nama Ayah Pria",
                         icon: Icons.family_restroom,
-                        iconColor: const Color(0xFF2196F3),
                         hint: "Contoh: Bapak Suharto",
+                        isForGroom: true,
                       ),
 
                       _buildStyledTextField(
                         controller: groomMotherNameController,
                         label: "Nama Ibu Pria",
                         icon: Icons.family_restroom,
-                        iconColor: const Color(0xFF2196F3),
                         hint: "Contoh: Ibu Siti Aminah",
+                        isForGroom: true,
                       ),
 
                       const SizedBox(height: 24),
@@ -475,39 +585,39 @@ class _InvitationViewState extends State<InvitationView>
                         title: "Data Mempelai Wanita",
                         subtitle: "Informasi lengkap mempelai wanita",
                         icon: Icons.person,
-                        color: const Color(0xFFE91E63),
+                        color: _currentTheme.primaryColor,
                       ),
 
                       _buildStyledTextField(
                         controller: brideFullNameController,
                         label: "Nama Lengkap Wanita",
                         icon: Icons.person,
-                        iconColor: const Color(0xFFE91E63),
                         hint: "Contoh: Siti Nurhaliza Putri",
+                        isForGroom: false,
                       ),
 
                       _buildStyledTextField(
                         controller: brideNickNameController,
                         label: "Nama Panggilan Wanita",
                         icon: Icons.person_outline,
-                        iconColor: const Color(0xFFE91E63),
                         hint: "Contoh: Siti",
+                        isForGroom: false,
                       ),
 
                       _buildStyledTextField(
                         controller: brideFatherNameController,
                         label: "Nama Ayah Wanita",
                         icon: Icons.family_restroom,
-                        iconColor: const Color(0xFFE91E63),
                         hint: "Contoh: Bapak Bambang",
+                        isForGroom: false,
                       ),
 
                       _buildStyledTextField(
                         controller: brideMotherNameController,
                         label: "Nama Ibu Wanita",
                         icon: Icons.family_restroom,
-                        iconColor: const Color(0xFFE91E63),
                         hint: "Contoh: Ibu Dewi Sari",
+                        isForGroom: false,
                       ),
 
                       const SizedBox(height: 32),
@@ -521,7 +631,9 @@ class _InvitationViewState extends State<InvitationView>
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0xFF95A5A6),
+                                  color: _currentTheme.textPrimary.withOpacity(
+                                    0.3,
+                                  ),
                                   width: 1.5,
                                 ),
                               ),
@@ -539,8 +651,10 @@ class _InvitationViewState extends State<InvitationView>
                                         Icon(
                                           Icons.refresh,
                                           color: _loading
-                                              ? Colors.grey
-                                              : const Color(0xFF95A5A6),
+                                              ? _currentTheme.textPrimary
+                                                    .withOpacity(0.3)
+                                              : _currentTheme.textPrimary
+                                                    .withOpacity(0.7),
                                           size: 20,
                                         ),
                                         const SizedBox(width: 8),
@@ -550,8 +664,12 @@ class _InvitationViewState extends State<InvitationView>
                                             fontSize: 15,
                                             fontWeight: FontWeight.w600,
                                             color: _loading
-                                                ? Colors.grey
-                                                : const Color(0xFF95A5A6),
+                                                ? _currentTheme.textPrimary
+                                                      .withOpacity(0.3)
+                                                : _currentTheme.textPrimary
+                                                      .withOpacity(0.7),
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
                                           ),
                                         ),
                                       ],
@@ -567,19 +685,18 @@ class _InvitationViewState extends State<InvitationView>
                               height: 52,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(14),
-                                gradient: const LinearGradient(
+                                gradient: LinearGradient(
                                   colors: [
-                                    Color(0xFFE91E63),
-                                    Color(0xFFAD1457),
+                                    _currentTheme.primaryColor,
+                                    _currentTheme.primaryColor.withOpacity(0.8),
                                   ],
                                   begin: Alignment.centerLeft,
                                   end: Alignment.centerRight,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFFE91E63,
-                                    ).withOpacity(0.3),
+                                    color: _currentTheme.primaryColor
+                                        .withOpacity(0.3),
                                     blurRadius: 12,
                                     offset: const Offset(0, 6),
                                   ),
@@ -601,22 +718,24 @@ class _InvitationViewState extends State<InvitationView>
                                               strokeWidth: 2,
                                             ),
                                           )
-                                        : const Row(
+                                        : Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
                                             children: [
-                                              Icon(
+                                              const Icon(
                                                 Icons.send,
                                                 color: Colors.white,
                                                 size: 20,
                                               ),
-                                              SizedBox(width: 8),
+                                              const SizedBox(width: 8),
                                               Text(
                                                 "Buat Undangan",
                                                 style: TextStyle(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.white,
+                                                  fontFamily:
+                                                      _currentTheme.fontFamily,
                                                 ),
                                               ),
                                             ],
@@ -638,7 +757,7 @@ class _InvitationViewState extends State<InvitationView>
                           color: const Color(0xFFF8F9FA),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Colors.grey.shade200,
+                            color: _currentTheme.primaryColor.withOpacity(0.2),
                             width: 1,
                           ),
                         ),
@@ -646,7 +765,7 @@ class _InvitationViewState extends State<InvitationView>
                           children: [
                             Icon(
                               Icons.info_outline,
-                              color: Colors.grey.shade600,
+                              color: _currentTheme.textPrimary.withOpacity(0.7),
                               size: 20,
                             ),
                             const SizedBox(width: 12),
@@ -654,9 +773,12 @@ class _InvitationViewState extends State<InvitationView>
                               child: Text(
                                 "Pastikan semua data sudah benar sebelum membuat undangan",
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                  color: _currentTheme.textPrimary.withOpacity(
+                                    0.7,
+                                  ),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
+                                  fontFamily: _currentTheme.fontFamily,
                                 ),
                               ),
                             ),
