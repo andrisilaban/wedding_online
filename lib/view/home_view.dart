@@ -12,6 +12,7 @@ import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/theme_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
+import 'package:wedding_online/services/music_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/services/theme_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
@@ -19,6 +20,7 @@ import 'package:wedding_online/view/event_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
+import 'package:wedding_online/view/music_view.dart';
 import 'package:wedding_online/view/theme_view.dart';
 
 class HomeView extends StatefulWidget {
@@ -31,6 +33,7 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   // TAMBAHAN VARIABEL UNTUK THEME
   WeddingTheme _currentTheme = ThemeService.availableThemes.first;
+  final MusicService _musicService = MusicService();
   final ThemeService _themeService = ThemeService();
   bool _isThemeLoading = true;
   bool _hasRedirected = false;
@@ -104,6 +107,8 @@ class _HomeViewState extends State<HomeView> {
     try {
       // Load theme terlebih dahulu
       await _loadCurrentTheme();
+      // Initialize music service
+      await _musicService.loadSavedTrack();
 
       // Setelah theme loaded, load data lainnya
       Future.delayed(const Duration(milliseconds: 800), () {
@@ -1191,7 +1196,7 @@ class _HomeViewState extends State<HomeView> {
       ),
       builder: (context) {
         return DefaultTabController(
-          length: 5, // Ubah dari 4 menjadi 5
+          length: 6, // Ubah dari 4 menjadi 5
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1218,6 +1223,7 @@ class _HomeViewState extends State<HomeView> {
                   Tab(icon: Icon(Icons.folder_open), text: "Daftar Undangan"),
                   Tab(icon: Icon(Icons.folder_open), text: "Daftar Acara"),
                   Tab(icon: Icon(Icons.palette), text: "Tema"),
+                  Tab(icon: Icon(Icons.music_note), text: "Musik"), // Tab baru
                 ],
               ),
               SizedBox(
@@ -1235,6 +1241,7 @@ class _HomeViewState extends State<HomeView> {
                     _buildInvitationListTab(),
                     _buildEventListTab(),
                     _buildThemeTab(),
+                    _buildMusicTab(), // Tab musik baru
                   ],
                 ),
               ),
@@ -1459,6 +1466,10 @@ class _HomeViewState extends State<HomeView> {
         ],
       ),
     );
+  }
+
+  Widget _buildMusicTab() {
+    return MusicPlayerWidget(currentTheme: _currentTheme);
   }
 
   Widget _buildInvitationListTab() {
@@ -2606,6 +2617,7 @@ class _HomeViewState extends State<HomeView> {
     _confettiController.dispose();
     _nameController.dispose();
     _messageController.dispose();
+    _musicService.dispose(); // Tambahkan ini
     super.dispose();
   }
 
