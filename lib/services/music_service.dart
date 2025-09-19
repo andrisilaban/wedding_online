@@ -49,7 +49,7 @@ class MusicService extends ChangeNotifier {
       id: 'romantic_1',
       title: 'A Thousand Years',
       artist: 'Christina Perri',
-      assetPath: 'music/romantic_2.mp3', // Removed 'assets/' prefix
+      assetPath: 'music/romantic_1.mp3',
       category: 'Romantic',
       duration: Duration(minutes: 4, seconds: 45),
       description: 'Lagu romantis klasik untuk momen spesial',
@@ -67,47 +67,18 @@ class MusicService extends ChangeNotifier {
       id: 'romantic_3',
       title: 'All of Me',
       artist: 'John Legend',
-      assetPath: 'music/romantic_2.mp3',
+      assetPath: 'music/romantic_3.mp3',
       category: 'Romantic',
       duration: Duration(minutes: 4, seconds: 29),
       description: 'Lagu cinta yang menyentuh hati',
     ),
 
-    // Classical
-    MusicTrack(
-      id: 'classical_1',
-      title: 'Canon in D',
-      artist: 'Johann Pachelbel',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Classical',
-      duration: Duration(minutes: 5, seconds: 3),
-      description: 'Klasik abadi untuk pernikahan',
-    ),
-    MusicTrack(
-      id: 'classical_2',
-      title: 'Ave Maria',
-      artist: 'Franz Schubert',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Classical',
-      duration: Duration(minutes: 6, seconds: 2),
-      description: 'Musik sakral yang indah',
-    ),
-    MusicTrack(
-      id: 'classical_3',
-      title: 'Wedding March',
-      artist: 'Felix Mendelssohn',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Classical',
-      duration: Duration(minutes: 4, seconds: 30),
-      description: 'March pernikahan tradisional',
-    ),
-
-    // Indonesian
+    // ===== Indonesian =====
     MusicTrack(
       id: 'indonesian_1',
       title: 'Sempurna',
       artist: 'Andra & The Backbone',
-      assetPath: 'music/romantic_2.mp3',
+      assetPath: 'music/indonesian_1.mp3',
       category: 'Indonesian',
       duration: Duration(minutes: 4, seconds: 12),
       description: 'Lagu cinta Indonesia yang populer',
@@ -116,7 +87,7 @@ class MusicService extends ChangeNotifier {
       id: 'indonesian_2',
       title: 'Cinta Ini Membunuhku',
       artist: 'D\'Masiv',
-      assetPath: 'music/romantic_2.mp3',
+      assetPath: 'music/indonesian_2.mp3',
       category: 'Indonesian',
       duration: Duration(minutes: 4, seconds: 35),
       description: 'Balada romantis Indonesia',
@@ -125,39 +96,96 @@ class MusicService extends ChangeNotifier {
       id: 'indonesian_3',
       title: 'Hingga Ujung Waktu',
       artist: 'Seventeen',
-      assetPath: 'music/romantic_2.mp3',
+      assetPath: 'music/indonesian_3.mp3',
       category: 'Indonesian',
       duration: Duration(minutes: 4, seconds: 18),
       description: 'Lagu cinta abadi Indonesia',
     ),
 
-    // Instrumental
+    // ===== Jawa =====
     MusicTrack(
-      id: 'instrumental_1',
-      title: 'Peaceful Piano',
-      artist: 'Various Artists',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Instrumental',
-      duration: Duration(minutes: 3, seconds: 45),
-      description: 'Piano instrumental yang menenangkan',
+      id: 'jawa_1',
+      title: 'Kabagyan',
+      artist: 'Sadewok',
+      assetPath: 'music/jawa_1.mp3',
+      category: 'Jawa',
+      duration: Duration(minutes: 5, seconds: 15),
+      description: 'Lagu Jawa bertema kebahagiaan pernikahan',
     ),
     MusicTrack(
-      id: 'instrumental_2',
-      title: 'Guitar Romance',
-      artist: 'Various Artists',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Instrumental',
-      duration: Duration(minutes: 4, seconds: 12),
-      description: 'Gitar akustik romantis',
+      id: 'jawa_2',
+      title: 'Kembang Wangi',
+      artist: 'Happy Asmara',
+      assetPath: 'music/jawa_2.mp3',
+      category: 'Jawa',
+      duration: Duration(minutes: 4, seconds: 45),
+      description: 'Lagu Jawa modern untuk pesta pernikahan',
     ),
     MusicTrack(
-      id: 'instrumental_3',
-      title: 'Violin Serenade',
-      artist: 'Various Artists',
-      assetPath: 'music/romantic_2.mp3',
-      category: 'Instrumental',
+      id: 'jawa_3',
+      title: 'Cundamani',
+      artist: 'Denny Caknan',
+      assetPath: 'music/jawa_3.mp3',
+      category: 'Jawa',
+      duration: Duration(minutes: 5, seconds: 5),
+      description: 'Lagu romantis Jawa yang populer',
+    ),
+
+    // ===== Sunda =====
+    MusicTrack(
+      id: 'sunda_1',
+      title: 'Es Lilin',
+      artist: 'Nining Meida',
+      assetPath: 'music/sunda_1.mp3',
+      category: 'Sunda',
+      duration: Duration(minutes: 4, seconds: 55),
+      description: 'Lagu Sunda klasik penuh nuansa cinta',
+    ),
+    MusicTrack(
+      id: 'sunda_2',
+      title: 'Bubuy Bulan',
+      artist: 'Nining Meida',
+      assetPath: 'music/sunda_2.mp3',
+      category: 'Sunda',
+      duration: Duration(minutes: 5, seconds: 30),
+      description: 'Lagu Sunda syahdu tentang cinta',
+    ),
+    MusicTrack(
+      id: 'sunda_3',
+      title: 'Sabilulungan',
+      artist: 'Mang Koko',
+      assetPath: 'music/sunda_3.mp3',
+      category: 'Sunda',
+      duration: Duration(minutes: 5, seconds: 10),
+      description: 'Lagu Sunda penuh makna kebersamaan',
+    ),
+    // ===== Batak =====
+    MusicTrack(
+      id: 'batak_1',
+      title: 'Dongan Matua',
+      artist: 'Traditional Batak',
+      assetPath: 'music/batak_1.mp3',
+      category: 'Batak',
+      duration: Duration(minutes: 5, seconds: 0),
+      description: 'Lagu adat Batak untuk pesta pernikahan',
+    ),
+    MusicTrack(
+      id: 'batak_2',
+      title: 'Boan Au',
+      artist: 'Traditional Batak',
+      assetPath: 'music/batak_2.mp3',
+      category: 'Batak',
+      duration: Duration(minutes: 4, seconds: 50),
+      description: 'Lagu cinta Batak penuh makna',
+    ),
+    MusicTrack(
+      id: 'batak_3',
+      title: 'Holan Au Do Mangantusi Ho',
+      artist: 'Traditional Batak',
+      assetPath: 'music/batak_3.mp3',
+      category: 'Batak',
       duration: Duration(minutes: 5, seconds: 20),
-      description: 'Serenata violin yang elegan',
+      description: 'Lagu Batak yang syahdu untuk pernikahan',
     ),
   ];
 
@@ -165,7 +193,7 @@ class MusicService extends ChangeNotifier {
   MusicTrack? _currentTrack;
   bool _isPlaying = false;
   bool _isMuted = false;
-  double _volume = 0.7;
+  double _volume = 1.0; // Increased default volume to maximum
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
 
@@ -189,6 +217,9 @@ class MusicService extends ChangeNotifier {
   }
 
   void _initializeAudioPlayer() {
+    // Set initial volume to maximum
+    _audioPlayer.setVolume(3.0);
+
     // Listen to player state changes
     _audioPlayer.onPlayerStateChanged.listen((PlayerState state) {
       _isPlaying = state == PlayerState.playing;
@@ -232,11 +263,15 @@ class MusicService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedTrackId = prefs.getString('selected_music_track');
-      final savedVolume = prefs.getDouble('music_volume') ?? 0.7;
+      final savedVolume =
+          prefs.getDouble('music_volume') ?? 1.0; // Default to max volume
       final savedMuted = prefs.getBool('music_muted') ?? false;
 
       _volume = savedVolume;
       _isMuted = savedMuted;
+
+      // Ensure volume is set properly on audio player
+      await _audioPlayer.setVolume(_isMuted ? 0.0 : _volume);
 
       if (savedTrackId != null) {
         final track = availableTracks.firstWhere(
@@ -290,6 +325,8 @@ class MusicService extends ChangeNotifier {
     if (_currentTrack == null) return;
 
     try {
+      // Ensure volume is set before playing
+      await _audioPlayer.setVolume(_isMuted ? 0.0 : _volume);
       await _audioPlayer.play(AssetSource(_currentTrack!.assetPath));
     } catch (e) {
       debugPrint('Error playing track from assets: $e');
@@ -304,6 +341,7 @@ class MusicService extends ChangeNotifier {
   Future<void> play() async {
     try {
       if (_currentTrack == null) return;
+      await _audioPlayer.setVolume(_isMuted ? 0.0 : _volume);
       await _audioPlayer.resume();
     } catch (e) {
       debugPrint('Error playing track: $e');
@@ -327,11 +365,15 @@ class MusicService extends ChangeNotifier {
     }
   }
 
-  // Volume controls
+  // Volume controls - Enhanced for better volume management
   Future<void> setVolume(double volume) async {
     try {
       _volume = volume.clamp(0.0, 1.0);
-      await _audioPlayer.setVolume(_volume);
+
+      // Set volume immediately on audio player
+      if (!_isMuted) {
+        await _audioPlayer.setVolume(_volume);
+      }
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble('music_volume', _volume);
