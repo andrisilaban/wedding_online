@@ -273,7 +273,7 @@ class _HomeViewState extends State<HomeView> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.purple.shade700,
+                  color: _currentTheme.primaryColor,
                 ),
               ),
               // ElevatedButton.icon(
@@ -385,7 +385,7 @@ class _HomeViewState extends State<HomeView> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.purple.shade700,
+                          color: _currentTheme.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -394,14 +394,17 @@ class _HomeViewState extends State<HomeView> {
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade700,
+                          color: _currentTheme.textPrimary,
                         ),
                       ),
                     ],
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: _currentTheme.primaryColor,
+                  ),
                   onSelected: (value) async {
                     switch (value) {
                       case 'edit':
@@ -414,11 +417,15 @@ class _HomeViewState extends State<HomeView> {
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit, size: 20, color: Colors.blue),
+                          Icon(
+                            Icons.edit,
+                            size: 20,
+                            color: _currentTheme.primaryColor,
+                          ),
                           SizedBox(width: 8),
                           Text('Edit'),
                         ],
@@ -461,7 +468,7 @@ class _HomeViewState extends State<HomeView> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.purple.shade100,
+                color: _currentTheme.primaryColor,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -469,7 +476,7 @@ class _HomeViewState extends State<HomeView> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.purple.shade700,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -482,12 +489,12 @@ class _HomeViewState extends State<HomeView> {
   Widget _buildEventDetail(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
+        Icon(icon, size: 16, color: _currentTheme.primaryColor),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            style: TextStyle(fontSize: 14, color: _currentTheme.textPrimary),
           ),
         ),
       ],
@@ -1810,43 +1817,68 @@ class _HomeViewState extends State<HomeView> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Edit Undangan'),
+          title: Text(
+            'Edit Undangan',
+            style: TextStyle(color: _currentTheme.primaryColor),
+          ),
           content: SingleChildScrollView(
             child: Column(
               children: [
                 TextField(
                   controller: groomFullNameController,
-                  decoration: InputDecoration(labelText: 'Nama Pria'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Pria',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: groomNickNameController,
-                  decoration: InputDecoration(labelText: 'Nama Singkatan Pria'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Singkatan Pria',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: groomFatherNameController,
-                  decoration: InputDecoration(labelText: 'Nama Bapak Pria'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Bapak Pria',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: groomMotherNameController,
-                  decoration: InputDecoration(labelText: 'Nama Ibu Pria'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Ibu Pria',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: brideFullNameController,
-                  decoration: InputDecoration(labelText: 'Nama Wanita'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Wanita',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: brideNickNameController,
                   decoration: InputDecoration(
                     labelText: 'Nama Singkatan Wanita',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
                   ),
                 ),
                 TextField(
                   controller: brideFatherNameController,
-                  decoration: InputDecoration(labelText: 'Nama Bapak Wanita'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Bapak Wanita',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
                 TextField(
                   controller: brideMotherNameController,
-                  decoration: InputDecoration(labelText: 'Nama Ibu Wanita'),
+                  decoration: InputDecoration(
+                    labelText: 'Nama Ibu Wanita',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                 ),
               ],
             ),
@@ -1949,6 +1981,10 @@ class _HomeViewState extends State<HomeView> {
                   );
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _currentTheme.primaryColor,
+                foregroundColor: Colors.white,
+              ),
               child: Text('Simpan'),
             ),
           ],
@@ -1993,26 +2029,32 @@ class _HomeViewState extends State<HomeView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                SizedBox(height: 10),
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Nama Acara',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: venueNameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Tempat',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: venueAddressController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Alamat',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -2020,8 +2062,10 @@ class _HomeViewState extends State<HomeView> {
                 TextField(
                   controller: dateController,
                   readOnly: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Tanggal',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+
                     border: OutlineInputBorder(),
                     suffixIcon: Icon(Icons.calendar_today),
                   ),
@@ -2045,8 +2089,12 @@ class _HomeViewState extends State<HomeView> {
                       child: TextField(
                         controller: startTimeController,
                         readOnly: true,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Jam Mulai',
+                          labelStyle: TextStyle(
+                            color: _currentTheme.primaryColor,
+                          ),
+
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.access_time),
                         ),
@@ -2069,8 +2117,12 @@ class _HomeViewState extends State<HomeView> {
                       child: TextField(
                         controller: endTimeController,
                         readOnly: true,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Jam Selesai',
+                          labelStyle: TextStyle(
+                            color: _currentTheme.primaryColor,
+                          ),
+
                           border: OutlineInputBorder(),
                           suffixIcon: Icon(Icons.access_time),
                         ),
@@ -2094,16 +2146,20 @@ class _HomeViewState extends State<HomeView> {
                 TextField(
                   controller: descriptionController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Deskripsi',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+
                     border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: orderNumberController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Urutan',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
@@ -2213,7 +2269,7 @@ class _HomeViewState extends State<HomeView> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple.shade700,
+                backgroundColor: _currentTheme.primaryColor,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Simpan'),
@@ -2479,7 +2535,10 @@ class _HomeViewState extends State<HomeView> {
                 TextField(
                   controller: startTimeController,
                   readOnly: true,
-                  decoration: InputDecoration(labelText: 'Jam Mulai'),
+                  decoration: InputDecoration(
+                    labelText: 'Jam Mulai',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                   onTap: () async {
                     selectedStartTime = await showTimePicker(
                       context: context,
@@ -2494,7 +2553,10 @@ class _HomeViewState extends State<HomeView> {
                 TextField(
                   controller: endTimeController,
                   readOnly: true,
-                  decoration: InputDecoration(labelText: 'Jam Selesai'),
+                  decoration: InputDecoration(
+                    labelText: 'Jam Selesai',
+                    labelStyle: TextStyle(color: _currentTheme.primaryColor),
+                  ),
                   onTap: () async {
                     selectedEndTime = await showTimePicker(
                       context: context,
@@ -3457,7 +3519,7 @@ class _HomeViewState extends State<HomeView> {
                   Icon(
                     Icons.event_note,
                     size: 48,
-                    color: _currentTheme.secondaryColor,
+                    color: _currentTheme.primaryColor,
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -3621,7 +3683,7 @@ class _HomeViewState extends State<HomeView> {
                     Icon(
                       Icons.access_time,
                       size: 16,
-                      color: _currentTheme.textSecondary,
+                      color: _currentTheme.primaryColor,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -3640,7 +3702,7 @@ class _HomeViewState extends State<HomeView> {
                       Icon(
                         Icons.location_on,
                         size: 16,
-                        color: _currentTheme.textSecondary,
+                        color: _currentTheme.primaryColor,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -3985,13 +4047,16 @@ class _HomeViewState extends State<HomeView> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: _currentTheme.secondaryColor,
+                  color: _currentTheme.primaryColor,
                   width: 2,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
+                borderSide: BorderSide(
+                  color: _currentTheme.primaryColor,
+                  width: 2,
+                ),
               ),
               prefixIcon: Icon(
                 Icons.person,
@@ -4017,13 +4082,16 @@ class _HomeViewState extends State<HomeView> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: _currentTheme.secondaryColor,
+                  color: _currentTheme.primaryColor,
                   width: 2,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.purple.shade700, width: 2),
+                borderSide: BorderSide(
+                  color: _currentTheme.primaryColor,
+                  width: 2,
+                ),
               ),
               prefixIcon: Icon(
                 Icons.message,
@@ -4055,7 +4123,7 @@ class _HomeViewState extends State<HomeView> {
                 ),
                 icon: Icon(
                   Icons.arrow_drop_down,
-                  color: Colors.purple.shade700,
+                  color: _currentTheme.primaryColor,
                 ),
                 items: options.map((String value) {
                   return DropdownMenuItem<String>(
@@ -4171,16 +4239,16 @@ class _HomeViewState extends State<HomeView> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(),
+          Divider(color: _currentTheme.secondaryColor),
           for (var comment in comments) ...[
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
-                backgroundColor: Colors.purple.shade100,
+                backgroundColor: _currentTheme.primaryColor,
                 child: Text(
                   comment['name'][0].toUpperCase(),
                   style: TextStyle(
-                    color: Colors.purple.shade700,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -4189,7 +4257,13 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     comment['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontFamily: _currentTheme.fontFamily,
+                      letterSpacing: 0.5,
+                      wordSpacing: 1.2,
+                      color: _currentTheme.primaryColor,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Container(
@@ -4224,10 +4298,20 @@ class _HomeViewState extends State<HomeView> {
                 children: [
                   Text(
                     comment['date'],
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _currentTheme.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text(comment['message']),
+                  Text(
+                    comment['message'],
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: _currentTheme.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),

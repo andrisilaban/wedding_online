@@ -186,7 +186,11 @@ class _InvitationViewState extends State<InvitationView>
                 ),
                 prefixIcon: Container(
                   margin: const EdgeInsets.only(left: 12, right: 12),
-                  child: Icon(icon, color: iconColor, size: 22),
+                  child: Icon(
+                    icon,
+                    color: _currentTheme.primaryColor,
+                    size: 22,
+                  ),
                 ),
                 filled: true,
                 fillColor: _currentTheme.cardBackground,
@@ -232,18 +236,14 @@ class _InvitationViewState extends State<InvitationView>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.8)],
+          colors: [
+            _currentTheme.primaryColor,
+            _currentTheme.primaryColor.withOpacity(0.8),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       child: Row(
         children: [
