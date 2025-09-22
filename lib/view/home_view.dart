@@ -11,6 +11,7 @@ import 'package:wedding_online/constants/styles.dart';
 import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/theme_model.dart';
+import 'package:wedding_online/models/wish_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/music_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
@@ -87,6 +88,10 @@ class _HomeViewState extends State<HomeView> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final List<String> options = ["Hadir", "Tidak Hadir", "Mungkin"];
+
+  List<WishModel> _wishes = [];
+  bool _isLoadingWishes = true;
+  bool _isSubmittingWish = false;
 
   final List<String> galleryImages = [
     'assets/images/couple.jpg',
@@ -1118,6 +1123,161 @@ class _HomeViewState extends State<HomeView> {
     });
   }
 
+  // Method untuk load wishes
+  Future<void> _loadWishesByInvitationId() async {
+    try {
+      setState(() {
+        _isLoadingWishes = true;
+      });
+
+      String? invitationId = _selectedInvitation?.id?.toString();
+
+      if (invitationId == null ||
+          invitationId.isEmpty ||
+          invitationId == '0' ||
+          invitationId == '999999999') {
+        debugPrint('Invitation ID tidak tersedia, skip load wishes');
+        setState(() {
+          _wishes = [];
+          _isLoadingWishes = false;
+        });
+        return;
+      }
+
+      final response = await _authService.getWishesByInvitationId(
+        int.parse(invitationId),
+      );
+
+      setState(() {
+        _wishes = response.data ?? [];
+        _isLoadingWishes = false;
+        _calculateAttendingCount(); // Recalculate attending count
+      });
+
+      debugPrint('Loaded ${_wishes.length} wishes');
+    } catch (e) {
+      debugPrint('Error loading wishes: $e');
+      setState(() {
+        _wishes = [];
+        _isLoadingWishes = false;
+      });
+    }
+  }
+
+  // Method untuk submit wish
+  Future<void> _submitWish() async {
+    if (_nameController.text.isEmpty ||
+        _messageController.text.isEmpty ||
+        selectedValue == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Mohon lengkapi semua data'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    String? invitationId = _selectedInvitation?.id?.toString();
+
+    if (invitationId == null ||
+        invitationId.isEmpty ||
+        invitationId == '0' ||
+        invitationId == '999999999') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Invitation ID tidak tersedia'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmittingWish = true;
+    });
+
+    try {
+      // Convert selectedValue to API format
+      String attendanceStatus = selectedValue!.toLowerCase().replaceAll(
+        ' ',
+        '_',
+      );
+
+      final response = await _authService.createWish(
+        invitationId: int.parse(invitationId),
+        guestName: _nameController.text,
+        attendanceStatus: attendanceStatus,
+        message: _messageController.text,
+      );
+
+      if (response.status == 201) {
+        // Clear form
+        _nameController.clear();
+        _messageController.clear();
+        selectedValue = null;
+
+        // Play confetti animation
+        _confettiController.play();
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terima kasih atas ucapannya!'),
+            backgroundColor: _currentTheme.primaryColor,
+          ),
+        );
+
+        // Reload wishes
+        await _loadWishesByInvitationId();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim ucapan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error submitting wish: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSubmittingWish = false;
+      });
+    }
+  }
+
+  // Method untuk calculate attending count dari wishes API
+  void _calculateAttendingCount() {
+    _attendingCount = _wishes
+        .where((wish) => wish.attendanceStatus?.toLowerCase() == 'hadir')
+        .length;
+    setState(() {});
+  }
+
+  // Update initState method
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      _confettiController.play();
+    });
+
+    _invitationsFuture = _loadInvitations();
+    _getEventsByInvitationId();
+    // Tambahkan load wishes
+    _loadWishesByInvitationId();
+  }
+
+  // Update method _getEventsByInvitationId untuk juga load wishes
   void _getEventsByInvitationId() async {
     try {
       final token = await _storageService.getToken();
@@ -1166,6 +1326,9 @@ class _HomeViewState extends State<HomeView> {
         }
         _isLoading = false;
       });
+
+      // Load wishes setelah events berhasil dimuat
+      await _loadWishesByInvitationId();
     } catch (e) {
       debugPrint('Gagal load events: $e');
       setState(() {
@@ -1174,6 +1337,20 @@ class _HomeViewState extends State<HomeView> {
         _isLoading = false;
       });
       _handleTokenErrorOnce(e.toString());
+    }
+  }
+
+  // Update method untuk mengubah selectedValue ke format yang diinginkan UI
+  String _formatAttendanceStatus(String apiStatus) {
+    switch (apiStatus.toLowerCase()) {
+      case 'hadir':
+        return 'Hadir';
+      case 'tidak_hadir':
+        return 'Tidak Hadir';
+      case 'mungkin':
+        return 'Mungkin';
+      default:
+        return 'Belum Konfirmasi';
     }
   }
 
@@ -1477,313 +1654,6 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildMusicTab() {
     return MusicPlayerWidget(currentTheme: _currentTheme);
-  }
-
-  Widget _buildInvitationListTab() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Pilih Undangan',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: _currentTheme.primaryColor,
-              fontFamily: _currentTheme.fontFamily,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _allInvitations.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.card_giftcard_outlined,
-                          size: 64,
-                          color: _currentTheme.textPrimary.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Belum ada undangan.\nSilakan buat undangan baru.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: _currentTheme.textPrimary.withOpacity(0.6),
-                            fontFamily: _currentTheme.fontFamily,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _allInvitations.length,
-                    itemBuilder: (context, index) {
-                      final invitation = _allInvitations[index];
-                      final isSelected =
-                          _selectedInvitation?.id == invitation.id;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: isSelected
-                                  ? _currentTheme.primaryColor.withOpacity(0.2)
-                                  : _currentTheme.primaryColor.withOpacity(
-                                      0.05,
-                                    ),
-                              blurRadius: isSelected ? 12 : 6,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Card(
-                          margin: EdgeInsets.zero,
-                          elevation: 0,
-                          color: isSelected
-                              ? _currentTheme.primaryColor.withOpacity(0.1)
-                              : _currentTheme.cardBackground,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? _currentTheme.primaryColor.withOpacity(0.3)
-                                  : _currentTheme.primaryColor.withOpacity(0.1),
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            leading: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                gradient: isSelected
-                                    ? LinearGradient(
-                                        colors: [
-                                          _currentTheme.primaryColor,
-                                          _currentTheme.primaryColor
-                                              .withOpacity(0.8),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    : LinearGradient(
-                                        colors: [
-                                          _currentTheme.textPrimary.withOpacity(
-                                            0.1,
-                                          ),
-                                          _currentTheme.textPrimary.withOpacity(
-                                            0.05,
-                                          ),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                shape: BoxShape.circle,
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: _currentTheme.primaryColor
-                                              .withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Icon(
-                                isSelected
-                                    ? Icons.check_circle
-                                    : Icons.card_giftcard,
-                                color: isSelected
-                                    ? Colors.white
-                                    : _currentTheme.textPrimary.withOpacity(
-                                        0.6,
-                                      ),
-                                size: isSelected ? 24 : 22,
-                              ),
-                            ),
-                            title: Text(
-                              invitation.title ?? 'Undangan Tanpa Judul',
-                              style: TextStyle(
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.w600,
-                                color: isSelected
-                                    ? _currentTheme.primaryColor
-                                    : _currentTheme.textPrimary,
-                                fontSize: 16,
-                                fontFamily: _currentTheme.fontFamily,
-                              ),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                '${invitation.groomFullName ?? 'Mempelai Pria'} & ${invitation.brideFullName ?? 'Mempelai Wanita'}',
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? _currentTheme.primaryColor.withOpacity(
-                                          0.8,
-                                        )
-                                      : _currentTheme.textPrimary.withOpacity(
-                                          0.7,
-                                        ),
-                                  fontSize: 14,
-                                  fontFamily: _currentTheme.fontFamily,
-                                ),
-                              ),
-                            ),
-                            trailing: Container(
-                              decoration: BoxDecoration(
-                                color: _currentTheme.cardBackground,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: _currentTheme.primaryColor.withOpacity(
-                                    0.1,
-                                  ),
-                                ),
-                              ),
-                              child: PopupMenuButton<String>(
-                                padding: EdgeInsets.zero,
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  color: isSelected
-                                      ? _currentTheme.primaryColor
-                                      : _currentTheme.textPrimary.withOpacity(
-                                          0.6,
-                                        ),
-                                  size: 20,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                color: _currentTheme.cardBackground,
-                                elevation: 8,
-                                onSelected: (value) {
-                                  switch (value) {
-                                    case 'edit':
-                                      _showEditInvitationDialog(invitation);
-                                      break;
-                                    case 'delete':
-                                      _showDeleteInvitationDialog(invitation);
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.edit,
-                                          size: 18,
-                                          color: _currentTheme.primaryColor,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          'Edit',
-                                          style: TextStyle(
-                                            color: _currentTheme.textPrimary,
-                                            fontFamily:
-                                                _currentTheme.fontFamily,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.red,
-                                          size: 18,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          'Hapus',
-                                          style: TextStyle(
-                                            color: Colors.red,
-                                            fontFamily:
-                                                _currentTheme.fontFamily,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            onTap: () async {
-                              setState(() {
-                                _selectedInvitation = invitation;
-                              });
-
-                              // Save selected invitation ID to storage
-                              await _storageService.saveInvitationId(
-                                invitation.id.toString(),
-                              );
-
-                              // Reload events for selected invitation
-                              _getEventsByInvitationId();
-
-                              // Close the bottom sheet
-                              Navigator.pop(context);
-
-                              // Show success message with themed snackbar
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          'Undangan "${invitation.title}" dipilih',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontFamily:
-                                                _currentTheme.fontFamily,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: _currentTheme.primaryColor,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  margin: const EdgeInsets.all(16),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
   }
 
   // Fix for _showEditInvitationDialog method
@@ -2662,19 +2532,6 @@ class _HomeViewState extends State<HomeView> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _initializeApp();
-
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _confettiController.play();
-    });
-
-    _invitationsFuture = _loadInvitations();
-    _getEventsByInvitationId();
-  }
-
-  @override
   void dispose() {
     _confettiController.dispose();
     _nameController.dispose();
@@ -2685,13 +2542,6 @@ class _HomeViewState extends State<HomeView> {
 
   void logOut() {
     _storageService.clearAll();
-  }
-
-  void _calculateAttendingCount() {
-    _attendingCount = comments
-        .where((comment) => comment['attendance'] == 'Hadir')
-        .length;
-    setState(() {});
   }
 
   void _submitComment() {
@@ -4033,6 +3883,7 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 24),
           TextField(
             controller: _nameController,
+            enabled: !_isSubmittingWish,
             decoration: InputDecoration(
               labelText: "Nama",
               labelStyle: TextStyle(
@@ -4067,6 +3918,7 @@ class _HomeViewState extends State<HomeView> {
           const SizedBox(height: 16),
           TextField(
             controller: _messageController,
+            enabled: !_isSubmittingWish,
             maxLines: 3,
             decoration: InputDecoration(
               labelText: "Ucapan & Doa",
@@ -4157,17 +4009,19 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   );
                 }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    selectedValue = newValue;
-                  });
-                },
+                onChanged: _isSubmittingWish
+                    ? null
+                    : (String? newValue) {
+                        setState(() {
+                          selectedValue = newValue;
+                        });
+                      },
               ),
             ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _submitComment,
+            onPressed: _isSubmittingWish ? null : _submitWish,
             style: ElevatedButton.styleFrom(
               backgroundColor: _currentTheme.primaryColor,
               foregroundColor: Colors.white,
@@ -4176,23 +4030,50 @@ class _HomeViewState extends State<HomeView> {
                 borderRadius: BorderRadius.circular(25),
               ),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.send),
-                SizedBox(width: 8),
-                Text(
-                  "Kirim Ucapan",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            child: _isSubmittingWish
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Mengirim...",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.send),
+                      SizedBox(width: 8),
+                      Text(
+                        "Kirim Ucapan",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
     );
   }
 
+  // Update _buildCommentsSection method
+  // Update _buildCommentsSection dengan debug button
   Widget _buildCommentsSection() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -4215,7 +4096,7 @@ class _HomeViewState extends State<HomeView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "${comments.length} Ucapan",
+                "${_wishes.length} Ucapan",
                 style: headerTextStyle.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -4238,85 +4119,563 @@ class _HomeViewState extends State<HomeView> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Divider(color: _currentTheme.secondaryColor),
-          for (var comment in comments) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: _currentTheme.primaryColor,
-                child: Text(
-                  comment['name'][0].toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+
+          // DEBUG: Tambah button reload manual (hapus setelah debug selesai)
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: _isLoadingWishes
+                    ? null
+                    : () async {
+                        debugPrint('MANUAL RELOAD WISHES TRIGGERED');
+                        await _loadWishesByInvitationId();
+                      },
+                icon: _isLoadingWishes
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _currentTheme.primaryColor,
+                        ),
+                      )
+                    : Icon(Icons.refresh, size: 16),
+                label: Text(
+                  _isLoadingWishes ? 'Loading...' : 'Refresh Ucapan',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: _currentTheme.primaryColor,
                 ),
               ),
-              title: Row(
+            ],
+          ),
+
+          const SizedBox(height: 16),
+          Divider(color: _currentTheme.secondaryColor),
+
+          if (_isLoadingWishes) ...[
+            const SizedBox(height: 20),
+            Center(
+              child: Column(
                 children: [
+                  CircularProgressIndicator(color: _currentTheme.primaryColor),
+                  const SizedBox(height: 8),
                   Text(
-                    comment['name'],
+                    'Memuat ucapan...',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontFamily: _currentTheme.fontFamily,
-                      letterSpacing: 0.5,
-                      wordSpacing: 1.2,
-                      color: _currentTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: comment['attendance'] == 'Hadir'
-                          ? Colors.green.shade100
-                          : comment['attendance'] == 'Tidak Hadir'
-                          ? Colors.red.shade100
-                          : Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      comment['attendance'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: comment['attendance'] == 'Hadir'
-                            ? Colors.green.shade800
-                            : comment['attendance'] == 'Tidak Hadir'
-                            ? Colors.red.shade800
-                            : Colors.amber.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    comment['date'],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _currentTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    comment['message'],
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
                       color: _currentTheme.textSecondary,
+                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(),
+            const SizedBox(height: 20),
+          ] else if (_wishes.isEmpty) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _currentTheme.secondaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _currentTheme.secondaryColor.withOpacity(0.3),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.message_outlined,
+                    size: 48,
+                    color: _currentTheme.primaryColor.withOpacity(0.6),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Belum ada ucapan',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: _currentTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Jadilah yang pertama memberikan ucapan dan doa',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _currentTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  // DEBUG INFO
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ] else ...[
+            // Display wishes from API
+            for (var wish in _wishes.reversed.take(10)) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _currentTheme.cardBackground,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _currentTheme.primaryColor.withOpacity(0.1),
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: _currentTheme.primaryColor,
+                    child: Text(
+                      (wish.guestName?.isNotEmpty == true)
+                          ? wish.guestName![0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          wish.guestName ?? 'Tamu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontFamily: _currentTheme.fontFamily,
+                            letterSpacing: 0.5,
+                            wordSpacing: 1.2,
+                            color: _currentTheme.primaryColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: wish.attendanceStatus?.toLowerCase() == 'hadir'
+                              ? Colors.green.shade100
+                              : wish.attendanceStatus?.toLowerCase() ==
+                                    'tidak_hadir'
+                              ? Colors.red.shade100
+                              : Colors.amber.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _formatAttendanceStatus(wish.attendanceStatus ?? ''),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                wish.attendanceStatus?.toLowerCase() == 'hadir'
+                                ? Colors.green.shade800
+                                : wish.attendanceStatus?.toLowerCase() ==
+                                      'tidak_hadir'
+                                ? Colors.red.shade800
+                                : Colors.amber.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        wish.createdAt != null
+                            ? _formatWishDate(wish.createdAt!)
+                            : 'Tanggal tidak diketahui',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _currentTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        wish.message ?? 'Tidak ada pesan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          color: _currentTheme.textSecondary,
+                        ),
+                      ),
+                      // DEBUG INFO untuk setiap wish
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // Show "Load more" if there are more wishes
+            if (_wishes.length > 10) ...[
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  // You can implement pagination here if needed
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Menampilkan 10 ucapan terbaru dari ${_wishes.length} total',
+                      ),
+                      backgroundColor: _currentTheme.primaryColor,
+                    ),
+                  );
+                },
+                child: Text(
+                  'Lihat ${_wishes.length - 10} ucapan lainnya',
+                  style: TextStyle(
+                    color: _currentTheme.primaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ],
+        ],
+      ),
+    );
+  }
+
+  // Helper method to format wish date
+  String _formatWishDate(String dateString) {
+    try {
+      DateTime date = DateTime.parse(dateString);
+      DateTime now = DateTime.now();
+      Duration difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          return '${difference.inMinutes} menit yang lalu';
+        } else {
+          return '${difference.inHours} jam yang lalu';
+        }
+      } else if (difference.inDays == 1) {
+        return 'Kemarin';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} hari yang lalu';
+      } else {
+        return DateFormat('d MMM y', 'id_ID').format(date);
+      }
+    } catch (e) {
+      return dateString.substring(0, 19); // Return original if parsing fails
+    }
+  }
+
+  // Update method untuk handle invitation selection di _buildInvitationListTab
+  // Pastikan wishes juga di-reload ketika invitation berubah
+  Widget _buildInvitationListTab() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Pilih Undangan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: _currentTheme.primaryColor,
+              fontFamily: _currentTheme.fontFamily,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _allInvitations.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.card_giftcard_outlined,
+                          size: 64,
+                          color: _currentTheme.textPrimary.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Belum ada undangan.\nSilakan buat undangan baru.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: _currentTheme.textPrimary.withOpacity(0.6),
+                            fontFamily: _currentTheme.fontFamily,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _allInvitations.length,
+                    itemBuilder: (context, index) {
+                      final invitation = _allInvitations[index];
+                      final isSelected =
+                          _selectedInvitation?.id == invitation.id;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: isSelected
+                                  ? _currentTheme.primaryColor.withOpacity(0.2)
+                                  : _currentTheme.primaryColor.withOpacity(
+                                      0.05,
+                                    ),
+                              blurRadius: isSelected ? 12 : 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Card(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          color: isSelected
+                              ? _currentTheme.primaryColor.withOpacity(0.1)
+                              : _currentTheme.cardBackground,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? _currentTheme.primaryColor.withOpacity(0.3)
+                                  : _currentTheme.primaryColor.withOpacity(0.1),
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            leading: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: isSelected
+                                    ? LinearGradient(
+                                        colors: [
+                                          _currentTheme.primaryColor,
+                                          _currentTheme.primaryColor
+                                              .withOpacity(0.8),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : LinearGradient(
+                                        colors: [
+                                          _currentTheme.textPrimary.withOpacity(
+                                            0.1,
+                                          ),
+                                          _currentTheme.textPrimary.withOpacity(
+                                            0.05,
+                                          ),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                shape: BoxShape.circle,
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: _currentTheme.primaryColor
+                                              .withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.card_giftcard,
+                                color: isSelected
+                                    ? Colors.white
+                                    : _currentTheme.textPrimary.withOpacity(
+                                        0.6,
+                                      ),
+                                size: isSelected ? 24 : 22,
+                              ),
+                            ),
+                            title: Text(
+                              invitation.title ?? 'Undangan Tanpa Judul',
+                              style: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? _currentTheme.primaryColor
+                                    : _currentTheme.textPrimary,
+                                fontSize: 16,
+                                fontFamily: _currentTheme.fontFamily,
+                              ),
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '${invitation.groomFullName ?? 'Mempelai Pria'} & ${invitation.brideFullName ?? 'Mempelai Wanita'}',
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? _currentTheme.primaryColor.withOpacity(
+                                          0.8,
+                                        )
+                                      : _currentTheme.textPrimary.withOpacity(
+                                          0.7,
+                                        ),
+                                  fontSize: 14,
+                                  fontFamily: _currentTheme.fontFamily,
+                                ),
+                              ),
+                            ),
+                            trailing: Container(
+                              decoration: BoxDecoration(
+                                color: _currentTheme.cardBackground,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _currentTheme.primaryColor.withOpacity(
+                                    0.1,
+                                  ),
+                                ),
+                              ),
+                              child: PopupMenuButton<String>(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: isSelected
+                                      ? _currentTheme.primaryColor
+                                      : _currentTheme.textPrimary.withOpacity(
+                                          0.6,
+                                        ),
+                                  size: 20,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                color: _currentTheme.cardBackground,
+                                elevation: 8,
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'edit':
+                                      _showEditInvitationDialog(invitation);
+                                      break;
+                                    case 'delete':
+                                      _showDeleteInvitationDialog(invitation);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: _currentTheme.primaryColor,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Edit',
+                                          style: TextStyle(
+                                            color: _currentTheme.textPrimary,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          'Hapus',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            onTap: () async {
+                              setState(() {
+                                _selectedInvitation = invitation;
+                              });
+
+                              // Save selected invitation ID to storage
+                              await _storageService.saveInvitationId(
+                                invitation.id.toString(),
+                              );
+
+                              // Reload events and wishes for selected invitation
+                              _getEventsByInvitationId();
+                              await _loadWishesByInvitationId();
+
+                              // Close the bottom sheet
+                              Navigator.pop(context);
+
+                              // Show success message with themed snackbar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Undangan "${invitation.title}" dipilih',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontFamily:
+                                                _currentTheme.fontFamily,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  backgroundColor: _currentTheme.primaryColor,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
+import 'package:wedding_online/models/wish_model.dart';
 import 'package:wedding_online/services/storage_service.dart';
 
 class AuthService {
@@ -480,6 +481,154 @@ class AuthService {
       } else {
         throw Exception('Terjadi kesalahan jaringan');
       }
+    }
+  }
+
+  /// Get all wishes by invitation ID
+  Future<ApiResponse<List<WishModel>>> getWishesByInvitationId(
+    int invitationId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/wishes/invitation/$invitationId',
+        options: Options(headers: {'Accept': 'application/json'}),
+      );
+
+      debugPrint('--- GET WISHES BY INVITATION ---');
+      debugPrint(response.data.toString());
+
+      // Handle response dengan struktur yang berbeda
+      List<dynamic> dataList;
+      if (response.data is Map<String, dynamic>) {
+        // Jika response berupa object dengan key 'data'
+        if (response.data.containsKey('data')) {
+          dataList = response.data['data'] as List<dynamic>;
+        } else {
+          // Jika tidak ada key 'data', anggap seluruh response adalah array
+          dataList = [];
+        }
+      } else if (response.data is List) {
+        // Jika response langsung berupa array
+        dataList = response.data as List<dynamic>;
+      } else {
+        dataList = [];
+      }
+
+      debugPrint('Processing ${dataList.length} wishes from API');
+
+      List<WishModel> wishes = [];
+      for (var item in dataList) {
+        try {
+          final wish = WishModel.fromJson(item as Map<String, dynamic>);
+          wishes.add(wish);
+          debugPrint(
+            'Successfully parsed wish: ${wish.guestName} - ${wish.attendanceStatus}',
+          );
+        } catch (e) {
+          debugPrint('Error parsing wish item: $e');
+          debugPrint('Item data: $item');
+          // Continue processing other items
+        }
+      }
+
+      return ApiResponse(
+        status: response.data is Map ? response.data['status'] : 200,
+        message: response.data is Map ? response.data['message'] : 'Success',
+        data: wishes,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET WISHES ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat ucapan');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    } catch (e) {
+      debugPrint('--- GET WISHES PARSING ERROR ---');
+      debugPrint('Error: $e');
+      throw Exception('Gagal memproses data ucapan: $e');
+    }
+  }
+
+  /// Create a new wish - dengan error handling yang lebih baik
+  Future<ApiResponse<WishModel>> createWish({
+    required int invitationId,
+    int? guestId,
+    required String guestName,
+    required String attendanceStatus,
+    required String message,
+  }) async {
+    try {
+      final requestData = {
+        "invitation_id": invitationId,
+        "guest_name": guestName,
+        "attendance_status": attendanceStatus.toLowerCase(),
+        "message": message,
+      };
+
+      // Hanya tambahkan guest_id jika tidak null
+      if (guestId != null) {
+        requestData["guest_id"] = guestId;
+      }
+
+      debugPrint('--- CREATE WISH REQUEST ---');
+      debugPrint('Request data: $requestData');
+
+      final response = await _dio.post(
+        '/wishes',
+        data: requestData,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- CREATE WISH RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      // Parse response dengan aman
+      WishModel? createdWish;
+      if (response.data is Map<String, dynamic>) {
+        final responseMap = response.data as Map<String, dynamic>;
+
+        if (responseMap.containsKey('data') && responseMap['data'] != null) {
+          try {
+            createdWish = WishModel.fromJson(
+              responseMap['data'] as Map<String, dynamic>,
+            );
+            debugPrint(
+              'Successfully parsed created wish: ${createdWish.guestName}',
+            );
+          } catch (e) {
+            debugPrint('Error parsing created wish: $e');
+          }
+        }
+      }
+
+      return ApiResponse(
+        status: response.data is Map
+            ? response.data['status']
+            : response.statusCode,
+        message: response.data is Map ? response.data['message'] : 'Success',
+        data: createdWish,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- CREATE WISH ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal mengirim ucapan');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    } catch (e) {
+      debugPrint('--- CREATE WISH PARSING ERROR ---');
+      debugPrint('Error: $e');
+      throw Exception('Gagal memproses response: $e');
     }
   }
 }
