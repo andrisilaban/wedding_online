@@ -22,6 +22,7 @@ import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
 import 'package:wedding_online/view/music_view.dart';
+import 'package:wedding_online/view/package_view.dart';
 import 'package:wedding_online/view/theme_view.dart';
 
 class HomeView extends StatefulWidget {
@@ -1380,7 +1381,7 @@ class _HomeViewState extends State<HomeView> {
       ),
       builder: (context) {
         return DefaultTabController(
-          length: 6, // Ubah dari 4 menjadi 5
+          length: 7, // Ubah dari 4 menjadi 5
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1408,6 +1409,7 @@ class _HomeViewState extends State<HomeView> {
                   Tab(icon: Icon(Icons.folder_open), text: "Daftar Acara"),
                   Tab(icon: Icon(Icons.palette), text: "Tema"),
                   Tab(icon: Icon(Icons.music_note), text: "Musik"), // Tab baru
+                  Tab(icon: Icon(Icons.card_membership), text: "Paket"),
                 ],
               ),
               SizedBox(
@@ -1426,6 +1428,7 @@ class _HomeViewState extends State<HomeView> {
                     _buildEventListTab(),
                     _buildThemeTab(),
                     _buildMusicTab(), // Tab musik baru
+                    _buildPackageTab(), // Tab paket baru
                   ],
                 ),
               ),
@@ -1654,6 +1657,10 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildMusicTab() {
     return MusicPlayerWidget(currentTheme: _currentTheme);
+  }
+
+  Widget _buildPackageTab() {
+    return PackageView(currentTheme: _currentTheme);
   }
 
   // Fix for _showEditInvitationDialog method

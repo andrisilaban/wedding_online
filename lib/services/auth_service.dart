@@ -5,6 +5,7 @@ import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/event_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
+import 'package:wedding_online/models/package_model.dart';
 import 'package:wedding_online/models/wish_model.dart';
 import 'package:wedding_online/services/storage_service.dart';
 
@@ -629,6 +630,112 @@ class AuthService {
       debugPrint('--- CREATE WISH PARSING ERROR ---');
       debugPrint('Error: $e');
       throw Exception('Gagal memproses response: $e');
+    }
+  }
+
+  /// Get all packages (admin only)
+  Future<ApiResponse<List<PackageModel>>> getAllPackages(String token) async {
+    try {
+      final response = await _dio.get(
+        '/packages',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET ALL PACKAGES ---');
+      debugPrint(response.data.toString());
+
+      final dataList = response.data['data'] as List<dynamic>;
+      final packages = dataList
+          .map((json) => PackageModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      return ApiResponse(
+        status: response.data['status'],
+        message: response.data['message'],
+        data: packages,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET ALL PACKAGES ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat paket');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  /// Get active packages (public)
+  Future<ApiResponse<List<PackageModel>>> getActivePackages() async {
+    try {
+      final response = await _dio.get(
+        '/packages/active',
+        options: Options(headers: {'Accept': 'application/json'}),
+      );
+
+      debugPrint('--- GET ACTIVE PACKAGES ---');
+      debugPrint(response.data.toString());
+
+      final dataList = response.data['data'] as List<dynamic>;
+      final packages = dataList
+          .map((json) => PackageModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      return ApiResponse(
+        status: response.data['status'],
+        message: response.data['message'],
+        data: packages,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET ACTIVE PACKAGES ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat paket');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  /// Get package by ID
+  Future<ApiResponse<PackageModel>> getPackageById(
+    String token,
+    int packageId,
+  ) async {
+    try {
+      final response = await _dio.get(
+        '/packages/$packageId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET PACKAGE BY ID ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => PackageModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET PACKAGE BY ID ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat paket');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
     }
   }
 }
