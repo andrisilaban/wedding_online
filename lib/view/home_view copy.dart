@@ -18,7 +18,6 @@ import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/services/theme_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
 import 'package:wedding_online/view/event_view.dart';
-import 'package:wedding_online/view/gallery_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';
@@ -2711,18 +2710,6 @@ class _HomeViewState extends State<HomeView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  sh16,
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const GalleryScreen(),
-                        ),
-                      );
-                    },
-                    child: Text('Gallery'),
-                  ),
                   sh16,
                   _buildWeddingInfoCard(currentInvitation.title),
                   sh32,

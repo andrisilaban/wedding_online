@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:wedding_online/models/api_response.dart';
 import 'package:wedding_online/models/event_load_model.dart';
 import 'package:wedding_online/models/event_model.dart';
+import 'package:wedding_online/models/gallery_model.dart';
 import 'package:wedding_online/models/invitation_model.dart';
 import 'package:wedding_online/models/login_model.dart';
 import 'package:wedding_online/models/package_model.dart';
@@ -22,6 +25,9 @@ class AuthService {
   );
 
   final StorageService _storageService = StorageService();
+  // Add this constant at the top of AuthService class
+  static const String _imgBBApiKey = 'eae8e749fc0192f8c363aeecece087c5';
+  static const String _imgBBBaseUrl = 'https://api.imgbb.com/1/upload';
 
   Future<ApiResponse<LoginModel>> login(String email, String password) async {
     try {
@@ -733,6 +739,305 @@ class AuthService {
 
       if (e.response != null && e.response?.data is Map<String, dynamic>) {
         throw Exception(e.response?.data['message'] ?? 'Gagal memuat paket');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  // GALLERY METHODS - Add these methods to your AuthService class
+
+  /// Upload image to ImgBB
+  Future<ImgBBResponse> uploadImageToImgBB(File imageFile) async {
+    try {
+      final formData = FormData.fromMap({
+        'key': _imgBBApiKey,
+        'image': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        ),
+      });
+
+      final response = await _dio.post(
+        _imgBBBaseUrl,
+        data: formData,
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+      );
+
+      debugPrint('--- IMGBB UPLOAD RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ImgBBResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      debugPrint('--- IMGBB UPLOAD ERROR ---');
+      debugPrint(e.response?.data.toString());
+      throw Exception('Gagal mengunggah gambar ke ImgBB');
+    }
+  }
+
+  /// Get all galleries by invitation ID
+  Future<ApiResponse<List<GalleryModel>>> getGalleriesByInvitationId({
+    required String token,
+    required int invitationId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/galleries/invitation/$invitationId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET GALLERIES BY INVITATION ---');
+      debugPrint(response.data.toString());
+
+      List<dynamic> dataList = [];
+      if (response.data is Map<String, dynamic>) {
+        if (response.data.containsKey('data')) {
+          dataList = response.data['data'] as List<dynamic>;
+        }
+      } else if (response.data is List) {
+        dataList = response.data as List<dynamic>;
+      }
+
+      final galleries = dataList
+          .map((json) => GalleryModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      return ApiResponse(
+        status: response.data is Map ? response.data['status'] : 200,
+        message: response.data is Map ? response.data['message'] : 'Success',
+        data: galleries,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET GALLERIES ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat galeri');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  /// Create gallery (upload image)
+  Future<ApiResponse<GalleryModel>> createGallery({
+    required String token,
+    required int invitationId,
+    required File imageFile,
+    required String type,
+    String? caption,
+    int? orderNumber,
+  }) async {
+    try {
+      // First upload to ImgBB
+      debugPrint('--- UPLOADING TO IMGBB ---');
+      final imgBBResponse = await uploadImageToImgBB(imageFile);
+
+      if (!imgBBResponse.success || imgBBResponse.data?.url == null) {
+        throw Exception('Gagal mengunggah gambar');
+      }
+
+      // ubah URL hasil ImgBB
+      var imageUrl = imgBBResponse.data!.url!;
+      imageUrl = imageUrl.replaceFirst('i.ibb.co', 'i.ibb.co.com');
+      debugPrint('Image uploaded to ImgBB: $imageUrl');
+
+      // Then create gallery record
+      final formData = FormData.fromMap({
+        'invitation_id': invitationId,
+        'type': type,
+        'file_path': imageUrl, // Use ImgBB URL as file_path
+        'caption': caption ?? '',
+        'order_number': orderNumber ?? 1,
+        // 'file': await MultipartFile.fromFile(
+        //   imageFile.path,
+        //   filename: imageFile.path.split('/').last,
+        // ),
+      });
+
+      final response = await _dio.post(
+        '/galleries',
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- CREATE GALLERY RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => GalleryModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- CREATE GALLERY ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal membuat galeri');
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    } catch (e) {
+      debugPrint('--- CREATE GALLERY GENERAL ERROR ---');
+      debugPrint('Error: $e');
+      throw Exception('Gagal mengunggah gambar: $e');
+    }
+  }
+
+  /// Update gallery
+  Future<ApiResponse<GalleryModel>> updateGallery({
+    required String token,
+    required int galleryId,
+    required int invitationId,
+    File? imageFile, // Optional - only if updating image
+    String? type,
+    String? caption,
+    int? orderNumber,
+  }) async {
+    try {
+      Map<String, dynamic> requestData = {'invitation_id': invitationId};
+
+      // Add optional fields only if provided
+      if (type != null) requestData['type'] = type;
+      if (caption != null) requestData['caption'] = caption;
+      if (orderNumber != null) requestData['order_number'] = orderNumber;
+
+      // If updating image, upload to ImgBB first
+      if (imageFile != null) {
+        debugPrint('--- UPLOADING NEW IMAGE TO IMGBB ---');
+        final imgBBResponse = await uploadImageToImgBB(imageFile);
+
+        if (!imgBBResponse.success || imgBBResponse.data?.url == null) {
+          throw Exception('Gagal mengunggah gambar baru');
+        }
+
+        requestData['file_path'] = imgBBResponse.data!.url!;
+      }
+
+      FormData formData;
+      if (imageFile != null) {
+        // Include file in form data if updating image
+        requestData['file'] = await MultipartFile.fromFile(
+          imageFile.path,
+          filename: imageFile.path.split('/').last,
+        );
+        formData = FormData.fromMap(requestData);
+      } else {
+        // Only send JSON data if not updating image
+        formData = FormData.fromMap(requestData);
+      }
+
+      final response = await _dio.put(
+        '/galleries/$galleryId',
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- UPDATE GALLERY RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => GalleryModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- UPDATE GALLERY ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(
+          e.response?.data['message'] ?? 'Gagal memperbarui galeri',
+        );
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    } catch (e) {
+      debugPrint('--- UPDATE GALLERY GENERAL ERROR ---');
+      debugPrint('Error: $e');
+      throw Exception('Gagal memperbarui galeri: $e');
+    }
+  }
+
+  /// Delete gallery
+  Future<ApiResponse<void>> deleteGallery({
+    required String token,
+    required int galleryId,
+  }) async {
+    try {
+      final response = await _dio.delete(
+        '/galleries/$galleryId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- DELETE GALLERY RESPONSE ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(response.data);
+    } on DioException catch (e) {
+      debugPrint('--- DELETE GALLERY ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(
+          e.response?.data['message'] ?? 'Gagal menghapus galeri',
+        );
+      } else {
+        throw Exception('Terjadi kesalahan jaringan');
+      }
+    }
+  }
+
+  /// Get gallery by ID
+  Future<ApiResponse<GalleryModel>> getGalleryById({
+    required String token,
+    required int galleryId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/galleries/$galleryId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      debugPrint('--- GET GALLERY BY ID ---');
+      debugPrint(response.data.toString());
+
+      return ApiResponse.fromJson(
+        response.data,
+        fromJsonData: (json) => GalleryModel.fromJson(json),
+      );
+    } on DioException catch (e) {
+      debugPrint('--- GET GALLERY BY ID ERROR ---');
+      debugPrint(e.response?.data.toString());
+
+      if (e.response != null && e.response?.data is Map<String, dynamic>) {
+        throw Exception(e.response?.data['message'] ?? 'Gagal memuat galeri');
       } else {
         throw Exception('Terjadi kesalahan jaringan');
       }
