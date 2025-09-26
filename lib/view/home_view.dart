@@ -2716,9 +2716,7 @@ class _HomeViewState extends State<HomeView> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const GalleryScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const GalleryView()),
                       );
                     },
                     child: Text('Gallery'),

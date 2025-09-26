@@ -5,6 +5,7 @@ class GalleryModel {
   final String? filePath;
   final String? caption;
   final int? orderNumber;
+  final String? deleteUrl; // Add this field to store ImgBB delete URL
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -15,6 +16,7 @@ class GalleryModel {
     this.filePath,
     this.caption,
     this.orderNumber,
+    this.deleteUrl, // Add this parameter
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +29,7 @@ class GalleryModel {
       filePath: json['file_path']?.toString(),
       caption: json['caption']?.toString(),
       orderNumber: _parseIntSafely(json['order_number']),
+      deleteUrl: json['delete_url']?.toString(), // Add this line
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
@@ -53,6 +56,7 @@ class GalleryModel {
       'file_path': filePath,
       'caption': caption,
       'order_number': orderNumber,
+      'delete_url': deleteUrl, // Add this line
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -65,6 +69,7 @@ class GalleryModel {
     String? filePath,
     String? caption,
     int? orderNumber,
+    String? deleteUrl, // Add this parameter
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -75,6 +80,7 @@ class GalleryModel {
       filePath: filePath ?? this.filePath,
       caption: caption ?? this.caption,
       orderNumber: orderNumber ?? this.orderNumber,
+      deleteUrl: deleteUrl ?? this.deleteUrl, // Add this line
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -7,23 +7,24 @@ import 'package:wedding_online/models/gallery_model.dart';
 import 'package:wedding_online/services/auth_service.dart';
 import 'package:wedding_online/services/storage_service.dart';
 
-class GalleryScreen extends StatefulWidget {
-  const GalleryScreen({super.key});
+class GalleryView extends StatefulWidget {
+  const GalleryView({super.key});
 
   @override
-  State<GalleryScreen> createState() => _GalleryScreenState();
+  State<GalleryView> createState() => _GalleryViewState();
 }
 
-class _GalleryScreenState extends State<GalleryScreen> {
+class _GalleryViewState extends State<GalleryView> {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
   final ImagePicker _picker = ImagePicker();
 
   List<GalleryModel> _galleries = [];
   bool _isLoading = false;
-  bool _isUploading = false;
+  bool _isDeleting = false;
   String? _token;
   int? _invitationId;
+  int? _deletingItemId;
 
   @override
   void initState() {
@@ -52,6 +53,481 @@ class _GalleryScreenState extends State<GalleryScreen> {
 
     debugPrint(
       'Loaded user data - Token: ${_token != null ? 'Present' : 'Null'}, Invitation ID: $_invitationId',
+    );
+  }
+
+  Future<void> _showUploadDialog(File imageFile) async {
+    final TextEditingController captionController = TextEditingController();
+    final TextEditingController orderController = TextEditingController(
+      text: (_galleries.length + 1).toString(),
+    );
+
+    bool isUploading = false;
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // Always prevent dismissal during upload
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return WillPopScope(
+              onWillPop: () async => !isUploading,
+              child: AlertDialog(
+                title: const Text('Upload Gambar'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 200,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(imageFile, fit: BoxFit.cover),
+                        ),
+                      ),
+                      if (isUploading) ...[
+                        const SizedBox(height: 16),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Sedang mengupload gambar...',
+                          style: TextStyle(fontSize: 14, color: Colors.blue),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: captionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Caption (Opsional)',
+                            border: OutlineInputBorder(),
+                            helperText: 'Deskripsi singkat untuk gambar ini',
+                          ),
+                          maxLines: 2,
+                          maxLength: 200,
+                          enabled: !isUploading,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: orderController,
+                          decoration: const InputDecoration(
+                            labelText: 'Urutan Tampil',
+                            border: OutlineInputBorder(),
+                            helperText: 'Angka untuk urutan tampilan gambar',
+                          ),
+                          keyboardType: TextInputType.number,
+                          enabled: !isUploading,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  if (!isUploading)
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Batal'),
+                    ),
+                  ElevatedButton(
+                    onPressed: isUploading
+                        ? null
+                        : () async {
+                            setDialogState(() {
+                              isUploading = true;
+                            });
+
+                            try {
+                              final response = await _authService.createGallery(
+                                token: _token!,
+                                invitationId: _invitationId!,
+                                imageFile: imageFile,
+                                type: 'image',
+                                caption: captionController.text.isEmpty
+                                    ? null
+                                    : captionController.text,
+                                orderNumber:
+                                    int.tryParse(orderController.text) ?? 1,
+                              );
+
+                              // Check if response is successful
+                              // Based on your AuthService, check for status 200 or 201
+                              if (response.status == 200 ||
+                                  response.status == 201) {
+                                // Close dialog on success
+                                if (mounted) {
+                                  Navigator.of(context).pop();
+                                  _showSuccessSnackBar(
+                                    'Gambar berhasil diupload',
+                                  );
+                                  _loadGalleries();
+                                }
+                              } else {
+                                // Reset loading state if not successful
+                                setDialogState(() {
+                                  isUploading = false;
+                                });
+                                if (mounted) {
+                                  _showErrorSnackBar(
+                                    'Upload gagal: ${response.message ?? "Unknown error"}',
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              // On error, reset loading state and show error
+                              setDialogState(() {
+                                isUploading = false;
+                              });
+
+                              if (mounted) {
+                                _showErrorSnackBar(
+                                  'Error upload: ${e.toString()}',
+                                );
+                              }
+                            }
+                          },
+                    child: isUploading
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Uploading...'),
+                            ],
+                          )
+                        : const Text('Upload'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteGallery(GalleryModel gallery) async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Gambar'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (gallery.filePath != null)
+                Container(
+                  height: 150,
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: gallery.filePath!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.error),
+                    ),
+                  ),
+                ),
+              const Text('Apakah Anda yakin ingin menghapus gambar ini?'),
+              if (gallery.caption != null && gallery.caption!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    '"${gallery.caption}"',
+                    style: const TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 8),
+              const Text(
+                'Gambar akan dihapus dari ImgBB dan database.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true && gallery.id != null) {
+      setState(() {
+        _isDeleting = true;
+        _deletingItemId = gallery.id;
+      });
+
+      // Show loading snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('Menghapus gambar...'),
+            ],
+          ),
+          duration: Duration(seconds: 10), // Longer duration for deletion
+        ),
+      );
+
+      try {
+        await _authService.deleteGallery(
+          token: _token!,
+          galleryId: gallery.id!,
+        );
+
+        setState(() {
+          _galleries.removeWhere((g) => g.id == gallery.id);
+        });
+
+        // Clear the loading snackbar and show success
+        ScaffoldMessenger.of(context).clearSnackBars();
+        _showSuccessSnackBar('Gambar berhasil dihapus');
+      } catch (e) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        _showErrorSnackBar('Error: ${e.toString()}');
+      } finally {
+        setState(() {
+          _isDeleting = false;
+          _deletingItemId = null;
+        });
+      }
+    }
+  }
+
+  Widget _buildGalleryGrid() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Memuat galeri...'),
+          ],
+        ),
+      );
+    }
+
+    if (_galleries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.photo_library_outlined,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Belum ada gambar di galeri',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Mulai tambahkan foto-foto indah Anda',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _showImageSourceDialog,
+              icon: const Icon(Icons.add_photo_alternate),
+              label: const Text('Upload Gambar Pertama'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple.shade400,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadGalleries,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1,
+        ),
+        itemCount: _galleries.length,
+        itemBuilder: (context, index) {
+          final gallery = _galleries[index];
+          final isBeingDeleted = _isDeleting && _deletingItemId == gallery.id;
+
+          return GestureDetector(
+            onTap: isBeingDeleted ? null : () => _showImageDetail(gallery),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              elevation: 4,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: gallery.filePath ?? '',
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(
+                        Icons.broken_image,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+
+                  // Show loading overlay when deleting
+                  if (isBeingDeleted)
+                    Container(
+                      color: Colors.black.withOpacity(0.7),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Menghapus...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: IconButton(
+                        icon: Icon(
+                          isBeingDeleted ? Icons.hourglass_empty : Icons.delete,
+                          color: isBeingDeleted ? Colors.grey : Colors.red,
+                          size: 20,
+                        ),
+                        onPressed: isBeingDeleted
+                            ? null
+                            : () => _deleteGallery(gallery),
+                      ),
+                    ),
+                  ),
+
+                  if (gallery.orderNumber != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${gallery.orderNumber}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (gallery.caption != null && gallery.caption!.isNotEmpty)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withOpacity(0.8),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: Text(
+                          gallery.caption!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -158,208 +634,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  Future<void> _showUploadDialog(File imageFile) async {
-    final TextEditingController captionController = TextEditingController();
-    final TextEditingController orderController = TextEditingController(
-      text: (_galleries.length + 1).toString(),
-    );
-
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Upload Gambar'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      height: 200,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(imageFile, fit: BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: captionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Caption (Opsional)',
-                        border: OutlineInputBorder(),
-                        helperText: 'Deskripsi singkat untuk gambar ini',
-                      ),
-                      maxLines: 2,
-                      maxLength: 200,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: orderController,
-                      decoration: const InputDecoration(
-                        labelText: 'Urutan Tampil',
-                        border: OutlineInputBorder(),
-                        helperText: 'Angka untuk urutan tampilan gambar',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  onPressed: _isUploading
-                      ? null
-                      : () => Navigator.of(context).pop(),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: _isUploading
-                      ? null
-                      : () => _uploadImage(
-                          imageFile,
-                          captionController.text,
-                          int.tryParse(orderController.text) ?? 1,
-                        ),
-                  child: _isUploading
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            SizedBox(width: 8),
-                            Text('Uploading...'),
-                          ],
-                        )
-                      : const Text('Upload'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _uploadImage(
-    File imageFile,
-    String caption,
-    int orderNumber,
-  ) async {
-    setState(() => _isUploading = true);
-
-    try {
-      final response = await _authService.createGallery(
-        token: _token!,
-        invitationId: _invitationId!,
-        imageFile: imageFile,
-        type: 'image',
-        caption: caption.isEmpty ? null : caption,
-        orderNumber: orderNumber,
-      );
-
-      if (response.data != null) {
-        setState(() {
-          _galleries.add(response.data!);
-          _galleries.sort(
-            (a, b) => (a.orderNumber ?? 0).compareTo(b.orderNumber ?? 0),
-          );
-        });
-
-        if (mounted) {
-          Navigator.of(context).pop();
-          _showSuccessSnackBar('Gambar berhasil diupload');
-        }
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error upload: ${e.toString()}');
-    } finally {
-      setState(() => _isUploading = false);
-    }
-  }
-
-  Future<void> _deleteGallery(GalleryModel gallery) async {
-    final bool? shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Hapus Gambar'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (gallery.filePath != null)
-                Container(
-                  height: 150,
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: CachedNetworkImage(
-                      imageUrl: gallery.filePath!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) =>
-                          const Center(child: CircularProgressIndicator()),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.error),
-                    ),
-                  ),
-                ),
-              const Text('Apakah Anda yakin ingin menghapus gambar ini?'),
-              if (gallery.caption != null && gallery.caption!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    '"${gallery.caption}"',
-                    style: const TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Hapus', style: TextStyle(color: Colors.white)),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldDelete == true && gallery.id != null) {
-      try {
-        await _authService.deleteGallery(
-          token: _token!,
-          galleryId: gallery.id!,
-        );
-
-        setState(() {
-          _galleries.removeWhere((g) => g.id == gallery.id);
-        });
-
-        _showSuccessSnackBar('Gambar berhasil dihapus');
-      } catch (e) {
-        _showErrorSnackBar('Error: ${e.toString()}');
-      }
-    }
-  }
-
   void _showImageDetail(GalleryModel gallery) {
     showDialog(
       context: context,
@@ -417,179 +691,6 @@ class _GalleryScreenState extends State<GalleryScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildGalleryGrid() {
-    if (_isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Memuat galeri...'),
-          ],
-        ),
-      );
-    }
-
-    if (_galleries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.photo_library_outlined,
-              size: 80,
-              color: Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Belum ada gambar di galeri',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Mulai tambahkan foto-foto indah Anda',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _showImageSourceDialog,
-              icon: const Icon(Icons.add_photo_alternate),
-              label: const Text('Upload Gambar Pertama'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple.shade400,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadGalleries,
-      child: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1,
-        ),
-        itemCount: _galleries.length,
-        itemBuilder: (context, index) {
-          final gallery = _galleries[index];
-          return GestureDetector(
-            onTap: () => _showImageDetail(gallery),
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              elevation: 4,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: gallery.filePath ?? '',
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(
-                        Icons.broken_image,
-                        size: 50,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
-                        ),
-                        onPressed: () => _deleteGallery(gallery),
-                      ),
-                    ),
-                  ),
-                  if (gallery.orderNumber != null)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.8),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${gallery.orderNumber}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (gallery.caption != null && gallery.caption!.isNotEmpty)
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.8),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                        child: Text(
-                          gallery.caption!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
     );
   }
 

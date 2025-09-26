@@ -18,6 +18,7 @@ import 'package:wedding_online/services/storage_service.dart';
 import 'package:wedding_online/services/theme_service.dart';
 import 'package:wedding_online/view/countdown_timer.dart';
 import 'package:wedding_online/view/event_view.dart';
+import 'package:wedding_online/view/gallery_view.dart';
 import 'dart:async';
 
 import 'package:wedding_online/view/invitation_view.dart';

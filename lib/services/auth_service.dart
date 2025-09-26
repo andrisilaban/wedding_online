@@ -824,7 +824,7 @@ class AuthService {
     }
   }
 
-  /// Create gallery (upload image)
+  /// Create gallery (upload image) - Updated to store ImgBB ID and delete token
   Future<ApiResponse<GalleryModel>> createGallery({
     required String token,
     required int invitationId,
@@ -847,17 +847,34 @@ class AuthService {
       imageUrl = imageUrl.replaceFirst('i.ibb.co', 'i.ibb.co.com');
       debugPrint('Image uploaded to ImgBB: $imageUrl');
 
+      // Extract ID and delete token from ImgBB response
+      final imgbbId = imgBBResponse.data!.id;
+      final deleteUrl = imgBBResponse.data!.deleteUrl ?? '';
+
+      // Extract delete token from delete URL
+      // Delete URL format: https://ibb.co/delete/abc123/xyz789
+      String? deleteToken;
+      if (deleteUrl.isNotEmpty) {
+        final uri = Uri.parse(deleteUrl);
+        final pathSegments = uri.pathSegments;
+        if (pathSegments.length >= 3 && pathSegments[0] == 'delete') {
+          deleteToken =
+              pathSegments[2]; // The delete token is the third segment
+        }
+      }
+
+      debugPrint('ImgBB ID: $imgbbId');
+      debugPrint('Delete Token: $deleteToken');
+
       // Then create gallery record
       final formData = FormData.fromMap({
         'invitation_id': invitationId,
         'type': type,
         'file_path': imageUrl, // Use ImgBB URL as file_path
+        'imgbb_id': imgbbId, // Store ImgBB image ID
+        'delete_token': deleteToken, // Store ImgBB delete token
         'caption': caption ?? '',
         'order_number': orderNumber ?? 1,
-        // 'file': await MultipartFile.fromFile(
-        //   imageFile.path,
-        //   filename: imageFile.path.split('/').last,
-        // ),
       });
 
       final response = await _dio.post(
@@ -895,92 +912,64 @@ class AuthService {
     }
   }
 
-  /// Update gallery
-  Future<ApiResponse<GalleryModel>> updateGallery({
-    required String token,
-    required int galleryId,
-    required int invitationId,
-    File? imageFile, // Optional - only if updating image
-    String? type,
-    String? caption,
-    int? orderNumber,
-  }) async {
+  /// Delete image from ImgBB using image ID and delete token
+  Future<bool> deleteImageFromImgBB(String imageId, String deleteToken) async {
     try {
-      Map<String, dynamic> requestData = {'invitation_id': invitationId};
+      final deleteUrl =
+          'https://api.imgbb.com/1/delete/$imageId/$deleteToken?key=$_imgBBApiKey';
 
-      // Add optional fields only if provided
-      if (type != null) requestData['type'] = type;
-      if (caption != null) requestData['caption'] = caption;
-      if (orderNumber != null) requestData['order_number'] = orderNumber;
+      debugPrint('--- DELETING FROM IMGBB ---');
+      debugPrint('Delete URL: $deleteUrl');
 
-      // If updating image, upload to ImgBB first
-      if (imageFile != null) {
-        debugPrint('--- UPLOADING NEW IMAGE TO IMGBB ---');
-        final imgBBResponse = await uploadImageToImgBB(imageFile);
-
-        if (!imgBBResponse.success || imgBBResponse.data?.url == null) {
-          throw Exception('Gagal mengunggah gambar baru');
-        }
-
-        requestData['file_path'] = imgBBResponse.data!.url!;
-      }
-
-      FormData formData;
-      if (imageFile != null) {
-        // Include file in form data if updating image
-        requestData['file'] = await MultipartFile.fromFile(
-          imageFile.path,
-          filename: imageFile.path.split('/').last,
-        );
-        formData = FormData.fromMap(requestData);
-      } else {
-        // Only send JSON data if not updating image
-        formData = FormData.fromMap(requestData);
-      }
-
-      final response = await _dio.put(
-        '/galleries/$galleryId',
-        data: formData,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
-          },
-        ),
-      );
-
-      debugPrint('--- UPDATE GALLERY RESPONSE ---');
+      final response = await _dio.get(deleteUrl);
+      debugPrint('--- IMGBB DELETE RESPONSE ---');
       debugPrint(response.data.toString());
 
-      return ApiResponse.fromJson(
-        response.data,
-        fromJsonData: (json) => GalleryModel.fromJson(json),
-      );
-    } on DioException catch (e) {
-      debugPrint('--- UPDATE GALLERY ERROR ---');
-      debugPrint(e.response?.data.toString());
-
-      if (e.response != null && e.response?.data is Map<String, dynamic>) {
-        throw Exception(
-          e.response?.data['message'] ?? 'Gagal memperbarui galeri',
-        );
-      } else {
-        throw Exception('Terjadi kesalahan jaringan');
+      // Check if deletion was successful
+      if (response.statusCode == 200 && response.data != null) {
+        final responseData = response.data as Map<String, dynamic>;
+        final success = responseData['success'] ?? false;
+        debugPrint('ImgBB deletion success: $success');
+        return success;
       }
+
+      return false;
     } catch (e) {
-      debugPrint('--- UPDATE GALLERY GENERAL ERROR ---');
-      debugPrint('Error: $e');
-      throw Exception('Gagal memperbarui galeri: $e');
+      debugPrint('--- IMGBB DELETE ERROR ---');
+      debugPrint('Error deleting from ImgBB: $e');
+      // Don't throw error here, just return false
+      // We still want to delete from our database even if ImgBB deletion fails
+      return false;
     }
   }
 
-  /// Delete gallery
+  /// Delete gallery - Updated to delete from ImgBB using ID and token
   Future<ApiResponse<void>> deleteGallery({
     required String token,
     required int galleryId,
+    String? imgbbId, // ImgBB image ID
+    String? deleteToken, // ImgBB delete token
   }) async {
     try {
+      // First, try to delete from ImgBB if both ID and token are provided
+      if (imgbbId != null &&
+          imgbbId.isNotEmpty &&
+          deleteToken != null &&
+          deleteToken.isNotEmpty) {
+        debugPrint('--- DELETING FROM IMGBB ---');
+        final imgBBDeleted = await deleteImageFromImgBB(imgbbId, deleteToken);
+        if (imgBBDeleted) {
+          debugPrint('Successfully deleted from ImgBB');
+        } else {
+          debugPrint(
+            'Failed to delete from ImgBB, but continuing with database deletion',
+          );
+        }
+      } else {
+        debugPrint('Missing ImgBB ID or delete token, skipping ImgBB deletion');
+      }
+
+      // Then delete from database
       final response = await _dio.delete(
         '/galleries/$galleryId',
         options: Options(
@@ -1003,41 +992,6 @@ class AuthService {
         throw Exception(
           e.response?.data['message'] ?? 'Gagal menghapus galeri',
         );
-      } else {
-        throw Exception('Terjadi kesalahan jaringan');
-      }
-    }
-  }
-
-  /// Get gallery by ID
-  Future<ApiResponse<GalleryModel>> getGalleryById({
-    required String token,
-    required int galleryId,
-  }) async {
-    try {
-      final response = await _dio.get(
-        '/galleries/$galleryId',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Accept': 'application/json',
-          },
-        ),
-      );
-
-      debugPrint('--- GET GALLERY BY ID ---');
-      debugPrint(response.data.toString());
-
-      return ApiResponse.fromJson(
-        response.data,
-        fromJsonData: (json) => GalleryModel.fromJson(json),
-      );
-    } on DioException catch (e) {
-      debugPrint('--- GET GALLERY BY ID ERROR ---');
-      debugPrint(e.response?.data.toString());
-
-      if (e.response != null && e.response?.data is Map<String, dynamic>) {
-        throw Exception(e.response?.data['message'] ?? 'Gagal memuat galeri');
       } else {
         throw Exception('Terjadi kesalahan jaringan');
       }
