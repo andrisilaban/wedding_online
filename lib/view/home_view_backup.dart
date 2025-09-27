@@ -267,10 +267,6 @@ class _HomeViewState extends State<HomeView> {
     final token = await _storageService.getToken();
     if (token == null) {
       debugPrint('No token found for gallery loading');
-      setState(() {
-        _galleries = [];
-        _isLoadingGallery = false;
-      });
       return;
     }
 
@@ -281,8 +277,6 @@ class _HomeViewState extends State<HomeView> {
     try {
       // Parse the invitation ID to int
       int invitationId = int.parse(_selectedInvitation!.id.toString());
-
-      debugPrint('Loading galleries for invitation ID: $invitationId');
 
       final response = await _authService.getGalleriesByInvitationId(
         token: token,
@@ -295,31 +289,20 @@ class _HomeViewState extends State<HomeView> {
           _galleries.sort(
             (a, b) => (a.orderNumber ?? 0).compareTo(b.orderNumber ?? 0),
           );
-          _isLoadingGallery = false;
         });
-        debugPrint('Successfully loaded ${_galleries.length} galleries');
-      } else {
-        setState(() {
-          _galleries = [];
-          _isLoadingGallery = false;
-        });
-        debugPrint('No galleries found in response');
       }
     } catch (e) {
       debugPrint('Error loading galleries: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error memuat galeri: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
       setState(() {
-        _galleries = [];
         _isLoadingGallery = false;
       });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error memuat galeri: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -412,6 +395,7 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  // Add this method to show upload dialog
   Future<void> _showUploadDialog(File imageFile) async {
     final TextEditingController captionController = TextEditingController();
     final TextEditingController orderController = TextEditingController(
@@ -419,25 +403,15 @@ class _HomeViewState extends State<HomeView> {
     );
 
     bool isUploading = false;
-    bool dialogMounted = true;
-
-    // Store the main widget's context reference BEFORE showing dialog
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final mainContext = context;
 
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
+      builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return WillPopScope(
-              onWillPop: () async {
-                if (!isUploading) {
-                  dialogMounted = false;
-                }
-                return !isUploading;
-              },
+              onWillPop: () async => !isUploading,
               child: AlertDialog(
                 title: const Text('Upload Gambar'),
                 content: SingleChildScrollView(
@@ -495,24 +469,16 @@ class _HomeViewState extends State<HomeView> {
                 actions: <Widget>[
                   if (!isUploading)
                     TextButton(
-                      onPressed: () {
-                        dialogMounted = false;
-                        Navigator.of(dialogContext).pop();
-                      },
+                      onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Batal'),
                     ),
                   ElevatedButton(
                     onPressed: isUploading
                         ? null
                         : () async {
-                            if (dialogMounted) {
-                              setDialogState(() {
-                                isUploading = true;
-                              });
-                            }
-
-                            String? errorMessage;
-                            bool success = false;
+                            setDialogState(() {
+                              isUploading = true;
+                            });
 
                             try {
                               final token = await _storageService.getToken();
@@ -524,6 +490,7 @@ class _HomeViewState extends State<HomeView> {
                                 );
                               }
 
+                              // Parse invitation ID to int
                               int parsedInvitationId = int.parse(
                                 invitationId.toString(),
                               );
@@ -542,44 +509,47 @@ class _HomeViewState extends State<HomeView> {
 
                               if (response.status == 200 ||
                                   response.status == 201) {
-                                success = true;
+                                if (mounted) {
+                                  Navigator.of(context).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text(
+                                        'Gambar berhasil diupload',
+                                      ),
+                                      backgroundColor:
+                                          _currentTheme.primaryColor,
+                                    ),
+                                  );
+                                  await _loadGalleries(); // Refresh gallery
+                                }
                               } else {
-                                errorMessage =
-                                    'Upload gagal: ${response.message ?? "Unknown error"}';
+                                setDialogState(() {
+                                  isUploading = false;
+                                });
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Upload gagal: ${response.message ?? "Unknown error"}',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               }
                             } catch (e) {
-                              debugPrint('Upload error: $e');
-                              errorMessage = 'Error upload: $e';
-                            }
+                              setDialogState(() {
+                                isUploading = false;
+                              });
 
-                            // Close dialog first
-                            if (dialogMounted &&
-                                Navigator.of(dialogContext).canPop()) {
-                              dialogMounted = false;
-                              Navigator.of(dialogContext).pop();
-                            }
-
-                            // Handle results after dialog is closed
-                            if (success) {
-                              // Reload gallery
                               if (mounted) {
-                                await _loadGalleries();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error upload: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                               }
-
-                              // Show success message
-                              _showSafeSnackBar(
-                                scaffoldMessenger: scaffoldMessenger,
-                                message: 'Gambar berhasil diupload ke galeri!',
-                                backgroundColor: Colors.green,
-                                icon: Icons.check_circle,
-                              );
-                            } else if (errorMessage != null) {
-                              // Show error message
-                              _showSafeSnackBar(
-                                scaffoldMessenger: scaffoldMessenger,
-                                message: errorMessage,
-                                backgroundColor: Colors.red,
-                              );
                             }
                           },
                     child: isUploading
@@ -606,52 +576,7 @@ class _HomeViewState extends State<HomeView> {
           },
         );
       },
-    ).then((_) {
-      dialogMounted = false;
-    });
-  }
-
-  // Helper method to safely show SnackBar
-  void _showSafeSnackBar({
-    required ScaffoldMessengerState scaffoldMessenger,
-    required String message,
-    required Color backgroundColor,
-    IconData? icon,
-  }) {
-    try {
-      // Use a timer to ensure we're not in the middle of a build process
-      Timer(Duration.zero, () {
-        if (mounted) {
-          final snackBar = SnackBar(
-            content: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, color: Colors.white),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    message,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: backgroundColor,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          );
-
-          scaffoldMessenger.showSnackBar(snackBar);
-        }
-      });
-    } catch (e) {
-      // If SnackBar fails, just log the message
-      debugPrint('SnackBar error: $e. Original message: $message');
-    }
+    );
   }
 
   // Add this method to delete gallery
@@ -1413,7 +1338,6 @@ class _HomeViewState extends State<HomeView> {
           _events = [];
           tempEvent = EventLoadModel();
           _isLoading = false;
-          _galleries = []; // Clear galleries too
         });
         return;
       }
@@ -1441,8 +1365,6 @@ class _HomeViewState extends State<HomeView> {
         _isLoading = false;
       });
 
-      // FIXED: Load galleries and wishes after events are loaded
-      await _loadGalleries();
       await _loadWishesByInvitationId();
     } catch (e) {
       debugPrint('Gagal load events: $e');
@@ -1450,7 +1372,6 @@ class _HomeViewState extends State<HomeView> {
         _events = [];
         tempEvent = EventLoadModel();
         _isLoading = false;
-        _galleries = []; // Clear galleries on error
       });
       _handleTokenErrorOnce(e.toString());
     }
@@ -2373,6 +2294,111 @@ class _HomeViewState extends State<HomeView> {
                 foregroundColor: Colors.white,
               ),
               child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void showCreateInvitationPopup(BuildContext context) {
+    final groomFullNameController = TextEditingController();
+    final groomNickNameController = TextEditingController();
+    final groomFatherNameController = TextEditingController();
+    final groomMotherNameController = TextEditingController();
+    final brideFullNameController = TextEditingController();
+    final brideNickNameController = TextEditingController();
+    final brideFatherNameController = TextEditingController();
+    final brideMotherNameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Data Diri'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: groomFullNameController,
+                  decoration: InputDecoration(labelText: 'Nama Pria'),
+                ),
+                TextField(
+                  controller: groomNickNameController,
+                  decoration: InputDecoration(labelText: 'Nama Singkatan Pria'),
+                ),
+                TextField(
+                  controller: groomFatherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Bapak Pria'),
+                ),
+                TextField(
+                  controller: groomMotherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Ibu Pria'),
+                ),
+                TextField(
+                  controller: brideFullNameController,
+                  decoration: InputDecoration(labelText: 'Nama Wanita'),
+                ),
+                TextField(
+                  controller: brideNickNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nama Singkatan Wanita',
+                  ),
+                ),
+                TextField(
+                  controller: brideFatherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Bapak Wanita'),
+                ),
+                TextField(
+                  controller: brideMotherNameController,
+                  decoration: InputDecoration(labelText: 'Nama Ibu Wanita'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                String token = await StorageService().getToken() ?? '';
+                final authService = AuthService();
+
+                final data = {
+                  "title":
+                      "Pernikahan ${groomFullNameController.text} & ${brideFullNameController.text}",
+                  "theme_id": 1,
+                  "pre_wedding_text":
+                      "Dengan hormat mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara pernikahan kami",
+                  "groom_full_name": groomFullNameController.text,
+                  "groom_nick_name": groomNickNameController.text,
+                  "groom_title": "Putra dari",
+                  "groom_father_name": groomFatherNameController.text,
+                  "groom_mother_name": groomMotherNameController.text,
+                  "bride_full_name": brideFullNameController.text,
+                  "bride_nick_name": brideNickNameController.text,
+                  "bride_title": "Putri dari",
+                  "bride_father_name": brideFatherNameController.text,
+                  "bride_mother_name": brideMotherNameController.text,
+                };
+
+                final result = await authService.createInvitation(token, data);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Undangan berhasil dibuat!')),
+                );
+
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+
+                setState(() {
+                  _invitationsFuture = _loadInvitations();
+                });
+              },
+              child: Text('Kirim'),
             ),
           ],
         );
